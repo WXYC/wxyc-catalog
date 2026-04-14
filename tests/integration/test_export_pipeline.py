@@ -214,3 +214,132 @@ class TestLabelExtractionPipeline:
             artists = [r["artist_name"] for r in reader]
 
         assert artists == sorted(artists)
+
+
+class TestPreExistingIncompatibleSchema:
+    """Pre-existing SQLite with incompatible schema is recreated cleanly."""
+
+    @pytest.fixture(autouse=True)
+    def _set_up(self, tmp_path: Path) -> None:
+        self.tmp_path = tmp_path
+        self.db_path = tmp_path / "library.db"
+
+    def test_incompatible_schema_recreated(self) -> None:
+        """A library.db with a completely different schema is replaced."""
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("CREATE TABLE widgets (id INTEGER PRIMARY KEY, color TEXT, size REAL)")
+        conn.execute("INSERT INTO widgets VALUES (1, 'red', 3.14)")
+        conn.execute("CREATE TABLE gadgets (name TEXT UNIQUE)")
+        conn.commit()
+        conn.close()
+
+        assert self.db_path.exists()
+
+        export_rows_to_sqlite(list(EXAMPLE_LIBRARY_ROWS), self.db_path)
+
+        conn = sqlite3.connect(self.db_path)
+        tables = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        assert "library" in tables
+        assert "library_fts" in tables
+        assert "widgets" not in tables
+        assert "gadgets" not in tables
+
+        count = conn.execute("SELECT COUNT(*) FROM library").fetchone()[0]
+        assert count == len(EXAMPLE_LIBRARY_ROWS)
+        conn.close()
+
+    def test_old_schema_missing_columns_recreated(self) -> None:
+        """A library.db with the library table but wrong columns is replaced."""
+        conn = sqlite3.connect(self.db_path)
+        conn.execute(
+            "CREATE TABLE library (id INTEGER PRIMARY KEY, name TEXT, category TEXT)"
+        )
+        conn.execute("INSERT INTO library VALUES (1, 'Confield', 'Electronic')")
+        conn.commit()
+        conn.close()
+
+        export_rows_to_sqlite(list(EXAMPLE_LIBRARY_ROWS), self.db_path)
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.execute("PRAGMA table_info(library)")
+        columns = {row[1] for row in cursor.fetchall()}
+        expected = {
+            "id", "title", "artist", "call_letters",
+            "artist_call_number", "release_call_number",
+            "genre", "format", "alternate_artist_name",
+        }
+        assert columns == expected
+
+        count = conn.execute("SELECT COUNT(*) FROM library").fetchone()[0]
+        assert count == len(EXAMPLE_LIBRARY_ROWS)
+
+        old = conn.execute(
+            "SELECT COUNT(*) FROM library WHERE title = 'Confield'"
+        ).fetchone()[0]
+        assert old == 0
+        conn.close()
+
+    def test_fts5_rebuilt_after_recreation(self) -> None:
+        """FTS5 index works correctly after database recreation."""
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("CREATE TABLE library (junk TEXT)")
+        conn.commit()
+        conn.close()
+
+        export_rows_to_sqlite(list(EXAMPLE_LIBRARY_ROWS), self.db_path)
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.execute("""
+            SELECT l.artist FROM library l
+            JOIN library_fts fts ON l.id = fts.rowid
+            WHERE library_fts MATCH 'juana'
+        """)
+        results = cursor.fetchall()
+        assert len(results) == 1
+        assert results[0][0] == "Juana Molina"
+        conn.close()
+
+    def test_indexes_present_after_recreation(self) -> None:
+        """All expected indexes exist after database recreation."""
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("CREATE TABLE other (x INTEGER)")
+        conn.commit()
+        conn.close()
+
+        export_rows_to_sqlite(list(EXAMPLE_LIBRARY_ROWS), self.db_path)
+
+        conn = sqlite3.connect(self.db_path)
+        indexes = {
+            row[0]
+            for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='index'"
+            ).fetchall()
+        }
+        assert "idx_artist" in indexes
+        assert "idx_title" in indexes
+        assert "idx_alternate_artist" in indexes
+        conn.close()
+
+    def test_file_size_reasonable_after_recreation(self) -> None:
+        """Recreated database doesn't contain bloat from the old incompatible data."""
+        conn = sqlite3.connect(self.db_path)
+        conn.execute("CREATE TABLE bloat (data TEXT)")
+        for i in range(1000):
+            conn.execute("INSERT INTO bloat VALUES (?)", ("x" * 1000,))
+        conn.commit()
+        conn.close()
+
+        old_size = self.db_path.stat().st_size
+
+        export_rows_to_sqlite(list(EXAMPLE_LIBRARY_ROWS), self.db_path)
+
+        new_size = self.db_path.stat().st_size
+        assert new_size < old_size, (
+            f"Recreated db ({new_size} bytes) should be smaller than "
+            f"bloated db ({old_size} bytes)"
+        )
