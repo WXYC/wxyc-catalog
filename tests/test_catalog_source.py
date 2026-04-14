@@ -15,7 +15,6 @@ from wxyc_catalog.catalog_source import (
     create_catalog_source,
 )
 
-
 # ---------------------------------------------------------------------------
 # CatalogSource Protocol
 # ---------------------------------------------------------------------------
@@ -118,9 +117,7 @@ class TestTubafrenzySourceFetchLibraryRows:
 
     @patch("wxyc_catalog.catalog_source.connect_mysql")
     def test_returns_list_of_dicts(self, mock_connect) -> None:
-        cursor = _make_mock_cursor(
-            [(1, "DOGA", "Juana Molina", "JM", 42, 1, "Rock", "LP", None)]
-        )
+        cursor = _make_mock_cursor([(1, "DOGA", "Juana Molina", "JM", 42, 1, "Rock", "LP", None)])
         mock_connect.return_value.cursor.return_value = cursor
 
         source = TubafrenzySource("mysql://user:pass@host/db")
@@ -247,9 +244,7 @@ def _make_pg_mock():
     """Create a mock psycopg module where conn.cursor() returns a context-managed cursor."""
     mock_psycopg = MagicMock()
     cursor = MagicMock()
-    mock_psycopg.connect.return_value.cursor.return_value.__enter__ = MagicMock(
-        return_value=cursor
-    )
+    mock_psycopg.connect.return_value.cursor.return_value.__enter__ = MagicMock(return_value=cursor)
     mock_psycopg.connect.return_value.cursor.return_value.__exit__ = MagicMock(return_value=False)
     return mock_psycopg, cursor
 
@@ -265,9 +260,15 @@ class TestBackendServiceSourceFetchLibraryRows:
             return_value=False
         )
         cursor.description = [
-            ("id",), ("title",), ("artist",), ("call_letters",),
-            ("artist_call_number",), ("release_call_number",),
-            ("genre",), ("format",), ("alternate_artist_name",),
+            ("id",),
+            ("title",),
+            ("artist",),
+            ("call_letters",),
+            ("artist_call_number",),
+            ("release_call_number",),
+            ("genre",),
+            ("format",),
+            ("alternate_artist_name",),
         ]
         cursor.fetchall.return_value = [
             (1, "DOGA", "Juana Molina", "JM", 42, 1, "Rock", "LP", None)

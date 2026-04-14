@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import logging
 import sqlite3
-import sys
 from pathlib import Path
 
 from wxyc_catalog.catalog_source import create_catalog_source

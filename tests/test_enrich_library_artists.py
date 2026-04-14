@@ -14,7 +14,6 @@ from wxyc_catalog.enrich_library_artists import (
     parse_args,
 )
 
-
 # ---------------------------------------------------------------------------
 # extract_base_artists
 # ---------------------------------------------------------------------------
@@ -268,11 +267,16 @@ class TestParseArgs:
         assert args.wxyc_db_url is None
 
     def test_with_wxyc_db_url(self) -> None:
-        args = parse_args([
-            "--library-db", "library.db",
-            "--output", "artists.txt",
-            "--wxyc-db-url", "mysql://wxyc:wxyc@localhost:3307/wxycmusic",
-        ])
+        args = parse_args(
+            [
+                "--library-db",
+                "library.db",
+                "--output",
+                "artists.txt",
+                "--wxyc-db-url",
+                "mysql://wxyc:wxyc@localhost:3307/wxycmusic",
+            ]
+        )
         assert args.wxyc_db_url == "mysql://wxyc:wxyc@localhost:3307/wxycmusic"
 
     def test_missing_required_args_exits(self) -> None:
@@ -280,12 +284,18 @@ class TestParseArgs:
             parse_args(["--library-db", "library.db"])  # missing --output
 
     def test_with_catalog_source_and_db_url(self) -> None:
-        args = parse_args([
-            "--library-db", "library.db",
-            "--output", "artists.txt",
-            "--catalog-source", "backend-service",
-            "--catalog-db-url", "postgresql://user:pass@host/db",
-        ])
+        args = parse_args(
+            [
+                "--library-db",
+                "library.db",
+                "--output",
+                "artists.txt",
+                "--catalog-source",
+                "backend-service",
+                "--catalog-db-url",
+                "postgresql://user:pass@host/db",
+            ]
+        )
         assert args.catalog_source == "backend-service"
         assert args.catalog_db_url == "postgresql://user:pass@host/db"
         assert args.wxyc_db_url is None
@@ -350,12 +360,18 @@ class TestMain:
             patch.object(
                 mod,
                 "parse_args",
-                return_value=parse_args([
-                    "--library-db", str(library_db),
-                    "--output", str(output),
-                    "--catalog-source", "backend-service",
-                    "--catalog-db-url", "postgresql://user:pass@host/db",
-                ]),
+                return_value=parse_args(
+                    [
+                        "--library-db",
+                        str(library_db),
+                        "--output",
+                        str(output),
+                        "--catalog-source",
+                        "backend-service",
+                        "--catalog-db-url",
+                        "postgresql://user:pass@host/db",
+                    ]
+                ),
             ),
             patch.object(mod, "create_catalog_source", return_value=mock_source) as mock_factory,
         ):
@@ -377,10 +393,14 @@ class TestMain:
             patch.object(
                 mod,
                 "parse_args",
-                return_value=parse_args([
-                    "--library-db", str(tmp_path / "missing.db"),
-                    "--output", str(output),
-                ]),
+                return_value=parse_args(
+                    [
+                        "--library-db",
+                        str(tmp_path / "missing.db"),
+                        "--output",
+                        str(output),
+                    ]
+                ),
             ),
             pytest.raises(SystemExit, match="1"),
         ):
