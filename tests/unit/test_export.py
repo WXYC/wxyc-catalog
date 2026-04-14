@@ -7,24 +7,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.factories import make_library_row
 from wxyc_catalog.export_to_sqlite import export_rows_to_sqlite, format_size
-
-
-def _make_row(**overrides) -> dict:
-    """Create a library row dict with sensible defaults."""
-    defaults = {
-        "id": 1,
-        "title": "DOGA",
-        "artist": "Juana Molina",
-        "call_letters": "M",
-        "artist_call_number": "42",
-        "release_call_number": "1",
-        "genre": "Rock",
-        "format": "LP",
-        "alternate_artist_name": None,
-    }
-    defaults.update(overrides)
-    return defaults
 
 
 class TestExportRowsToSqlite:
@@ -33,10 +17,10 @@ class TestExportRowsToSqlite:
     def test_creates_library_table(self, tmp_path: Path) -> None:
         """Exported database should have a 'library' table with correct schema."""
         db_path = tmp_path / "library.db"
-        export_rows_to_sqlite([_make_row()], db_path)
+        export_rows_to_sqlite([make_library_row()], db_path)
 
         conn = sqlite3.connect(db_path)
-        cursor = conn.execute("SELECT * FROM library WHERE id = 1")
+        cursor = conn.execute("SELECT * FROM library WHERE id = 9001")
         row = cursor.fetchone()
         conn.close()
 
@@ -46,8 +30,8 @@ class TestExportRowsToSqlite:
     def test_creates_fts5_index(self, tmp_path: Path) -> None:
         """Exported database should have a working FTS5 index."""
         rows = [
-            _make_row(id=1, title="DOGA", artist="Juana Molina"),
-            _make_row(
+            make_library_row(id=1, title="DOGA", artist="Juana Molina"),
+            make_library_row(
                 id=2,
                 title="Moon Pix",
                 artist="Cat Power",
@@ -73,7 +57,7 @@ class TestExportRowsToSqlite:
 
     def test_row_count_matches_input(self, tmp_path: Path) -> None:
         """Exported database row count should match input."""
-        rows = [_make_row(id=i) for i in range(1, 51)]
+        rows = [make_library_row(id=i) for i in range(1, 51)]
         db_path = tmp_path / "library.db"
         export_rows_to_sqlite(rows, db_path)
 
@@ -87,7 +71,7 @@ class TestExportRowsToSqlite:
         db_path = tmp_path / "library.db"
         export_rows_to_sqlite(
             [
-                _make_row(
+                make_library_row(
                     id=1,
                     title="Drum n Bass for Papa",
                     artist="Luke Vibert",
@@ -107,7 +91,7 @@ class TestExportRowsToSqlite:
     def test_exports_null_alternate_artist_name(self, tmp_path: Path) -> None:
         """Rows with None alternate_artist_name should store NULL in SQLite."""
         db_path = tmp_path / "library.db"
-        export_rows_to_sqlite([_make_row(id=1, alternate_artist_name=None)], db_path)
+        export_rows_to_sqlite([make_library_row(id=1, alternate_artist_name=None)], db_path)
 
         conn = sqlite3.connect(db_path)
         row = conn.execute("SELECT alternate_artist_name FROM library WHERE id = 1").fetchone()
@@ -120,7 +104,7 @@ class TestExportRowsToSqlite:
         """The FTS5 index should include alternate_artist_name for full-text search."""
         db_path = tmp_path / "library.db"
         export_rows_to_sqlite(
-            [_make_row(id=1, artist="Luke Vibert", alternate_artist_name="Plug")],
+            [make_library_row(id=1, artist="Luke Vibert", alternate_artist_name="Plug")],
             db_path,
         )
 
@@ -140,7 +124,7 @@ class TestExportRowsToSqlite:
     def test_creates_indexes(self, tmp_path: Path) -> None:
         """Indexes on artist, title, alternate_artist_name should exist."""
         db_path = tmp_path / "library.db"
-        export_rows_to_sqlite([_make_row()], db_path)
+        export_rows_to_sqlite([make_library_row()], db_path)
 
         conn = sqlite3.connect(db_path)
         indexes = {
@@ -158,7 +142,7 @@ class TestExportRowsToSqlite:
         db_path = tmp_path / "library.db"
         db_path.write_text("garbage")
 
-        export_rows_to_sqlite([_make_row()], db_path)
+        export_rows_to_sqlite([make_library_row()], db_path)
 
         conn = sqlite3.connect(db_path)
         count = conn.execute("SELECT COUNT(*) FROM library").fetchone()[0]
@@ -169,8 +153,8 @@ class TestExportRowsToSqlite:
         """Mix of rows with and without alternate_artist_name should export correctly."""
         db_path = tmp_path / "library.db"
         rows = [
-            _make_row(id=1, artist="Luke Vibert", alternate_artist_name="Plug"),
-            _make_row(id=2, artist="Stereolab", alternate_artist_name=None),
+            make_library_row(id=1, artist="Luke Vibert", alternate_artist_name="Plug"),
+            make_library_row(id=2, artist="Stereolab", alternate_artist_name=None),
         ]
         export_rows_to_sqlite(rows, db_path)
 
