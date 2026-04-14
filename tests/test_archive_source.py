@@ -2,8 +2,6 @@ import asyncio
 import io
 import tarfile
 
-import pytest
-
 from wxyc_catalog.sources.archive import ArchiveSource
 
 
