@@ -18,7 +18,6 @@ src/wxyc_catalog/
 
 - **TDD**: Write failing test first, then implement.
 - **Code style**: ruff for linting and formatting, 100 char line length.
-- **Testing**: `pytest` runs all tests. No external database required; tests use mocks and tmp_path fixtures.
 - **Text normalization**: Always import from `wxyc_etl.text` (`split_artist_name_contextual`, `is_compilation_artist`). Never create local copies.
 
 ## Dependencies
@@ -27,6 +26,32 @@ src/wxyc_catalog/
 - `psycopg` for PostgreSQL (BackendServiceSource).
 - `pymysql` for MySQL (TubafrenzySource, optional extra).
 
-## Test Fixtures
+## Testing
 
-Use WXYC-representative artist data (not mainstream): Juana Molina, Stereolab, Cat Power, Autechre, Prince Jammy, Sessa, Duke Ellington & John Coltrane, etc.
+```bash
+pytest                    # unit tests only (default, no external deps)
+pytest -m integration     # integration tests (SQLite-based, no external DB)
+pytest -m '' -v           # all tests
+```
+
+Markers follow the standard WXYC convention (`unit`, `postgres`, `integration`, `e2e`, `parity`). The `addopts` in `pyproject.toml` excludes non-unit markers from the default run.
+
+### Test Layout
+
+```
+tests/
+  conftest.py                          # Shared fixtures (sample_library_db, sample_library_rows)
+  factories.py                         # Factory functions (make_library_row, EXAMPLE_LIBRARY_ROWS, EXAMPLE_LABEL_TRIPLES)
+  unit/
+    test_catalog_source.py             # Protocol compliance, helpers, factory, TubafrenzySource, BackendServiceSource
+    test_db.py                         # MySQL connection URL parsing
+    test_enrich.py                     # Artist enrichment (extract, merge, multi-artist splitting, CLI args)
+    test_export.py                     # SQLite export (schema, FTS5, indexes, overwrite), format_size
+    test_labels.py                     # Label extraction (CSV output, CLI args)
+  integration/
+    test_export_pipeline.py            # Full export/enrichment/label-extraction pipelines end-to-end
+```
+
+### Test Fixtures
+
+Use WXYC-representative artist data (not mainstream): Juana Molina, Stereolab, Cat Power, Jessica Pratt, Chuquimamani-Condori, Sessa, Duke Ellington & John Coltrane, etc. Factory functions in `tests/factories.py` provide canonical defaults aligned with `wxyc-shared/src/test-utils/wxyc-example-data.json`.
