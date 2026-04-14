@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from wxyc_catalog.sources.pg import PgSource
 
@@ -34,7 +33,11 @@ class TestPgSourceGracefulNone:
 
     async def test_connection_failure_returns_none(self):
         """When connection fails, queries should return None."""
-        with patch("asyncpg.create_pool", new_callable=AsyncMock, side_effect=Exception("refused")):
+        with patch(
+            "asyncpg.create_pool",
+            new_callable=AsyncMock,
+            side_effect=Exception("refused"),
+        ):
             source = PgSource("postgresql://bad-host/db")
             result = await source.fetchall("SELECT 1")
             assert result is None

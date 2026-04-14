@@ -31,7 +31,9 @@ class PgSource:
         max_size: Maximum number of connections in the pool.
     """
 
-    def __init__(self, dsn: str | None, *, min_size: int = 1, max_size: int = 5) -> None:
+    def __init__(
+        self, dsn: str | None, *, min_size: int = 1, max_size: int = 5
+    ) -> None:
         self._dsn = dsn
         self._min_size = min_size
         self._max_size = max_size
@@ -56,7 +58,9 @@ class PgSource:
             )
             return self._pool
         except Exception:
-            logger.warning("Failed to connect to PostgreSQL at %s", self._dsn, exc_info=True)
+            logger.warning(
+                "Failed to connect to PostgreSQL at %s", self._dsn, exc_info=True
+            )
             self._pool = None
             return None
 

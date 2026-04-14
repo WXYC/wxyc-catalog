@@ -1,5 +1,3 @@
-import pytest
-
 from wxyc_catalog.sources.sparql import SparqlSource
 
 
@@ -12,7 +10,10 @@ class TestSparqlSourceQueryExecution:
             "results": {
                 "bindings": [
                     {
-                        "item": {"type": "uri", "value": "http://www.wikidata.org/entity/Q2774"},
+                        "item": {
+                            "type": "uri",
+                            "value": "http://www.wikidata.org/entity/Q2774",
+                        },
                         "itemLabel": {"type": "literal", "value": "Autechre"},
                     },
                 ]
@@ -24,7 +25,9 @@ class TestSparqlSourceQueryExecution:
             sparql_endpoint="https://query.wikidata.org/sparql",
             rate_limit=1000,
         )
-        bindings = await source.query("SELECT ?item ?itemLabel WHERE { ?item wdt:P1953 '14' }")
+        bindings = await source.query(
+            "SELECT ?item ?itemLabel WHERE { ?item wdt:P1953 '14' }"
+        )
         assert len(bindings) == 1
         assert bindings[0]["item"]["value"] == "http://www.wikidata.org/entity/Q2774"
         await source.close()
@@ -70,14 +73,21 @@ class TestSparqlSourceHelpers:
     """SparqlSource static helper methods."""
 
     def test_extract_qid_from_uri(self):
-        assert SparqlSource.extract_qid("http://www.wikidata.org/entity/Q2774") == "Q2774"
+        assert (
+            SparqlSource.extract_qid("http://www.wikidata.org/entity/Q2774") == "Q2774"
+        )
 
     def test_extract_qid_from_bare_qid(self):
         assert SparqlSource.extract_qid("Q2774") == "Q2774"
 
     def test_binding_value_present(self):
-        binding = {"item": {"type": "uri", "value": "http://www.wikidata.org/entity/Q2774"}}
-        assert SparqlSource.binding_value(binding, "item") == "http://www.wikidata.org/entity/Q2774"
+        binding = {
+            "item": {"type": "uri", "value": "http://www.wikidata.org/entity/Q2774"}
+        }
+        assert (
+            SparqlSource.binding_value(binding, "item")
+            == "http://www.wikidata.org/entity/Q2774"
+        )
 
     def test_binding_value_absent(self):
         binding = {"item": {"type": "uri", "value": "..."}}
@@ -108,7 +118,12 @@ class TestSparqlSourceBatchSplitting:
             json={
                 "results": {
                     "bindings": [
-                        {"item": {"type": "uri", "value": "http://www.wikidata.org/entity/Q1"}},
+                        {
+                            "item": {
+                                "type": "uri",
+                                "value": "http://www.wikidata.org/entity/Q1",
+                            }
+                        },
                     ]
                 }
             }
@@ -117,7 +132,12 @@ class TestSparqlSourceBatchSplitting:
             json={
                 "results": {
                     "bindings": [
-                        {"item": {"type": "uri", "value": "http://www.wikidata.org/entity/Q3"}},
+                        {
+                            "item": {
+                                "type": "uri",
+                                "value": "http://www.wikidata.org/entity/Q3",
+                            }
+                        },
                     ]
                 }
             }

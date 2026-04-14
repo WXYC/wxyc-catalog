@@ -1,7 +1,5 @@
 import time
 
-import pytest
-
 from wxyc_catalog.sources.http import HttpSource
 
 
