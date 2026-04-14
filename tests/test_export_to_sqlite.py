@@ -47,8 +47,14 @@ class TestExportRowsToSqlite:
         """Exported database should have a working FTS5 index."""
         rows = [
             _make_row(id=1, title="DOGA", artist="Juana Molina"),
-            _make_row(id=2, title="Moon Pix", artist="Cat Power", call_letters="C",
-                      artist_call_number="456", release_call_number="2"),
+            _make_row(
+                id=2,
+                title="Moon Pix",
+                artist="Cat Power",
+                call_letters="C",
+                artist_call_number="456",
+                release_call_number="2",
+            ),
         ]
         db_path = tmp_path / "library.db"
         export_rows_to_sqlite(rows, db_path)
@@ -80,8 +86,14 @@ class TestExportRowsToSqlite:
         """Rows with alternate_artist_name should store it in SQLite."""
         db_path = tmp_path / "library.db"
         export_rows_to_sqlite(
-            [_make_row(id=1, title="Drum n Bass for Papa", artist="Luke Vibert",
-                       alternate_artist_name="Plug")],
+            [
+                _make_row(
+                    id=1,
+                    title="Drum n Bass for Papa",
+                    artist="Luke Vibert",
+                    alternate_artist_name="Plug",
+                )
+            ],
             db_path,
         )
 
@@ -133,9 +145,7 @@ class TestExportRowsToSqlite:
         conn = sqlite3.connect(db_path)
         indexes = {
             row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='index'"
-            ).fetchall()
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
         }
         conn.close()
 
