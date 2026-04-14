@@ -1,12 +1,39 @@
 [project]
 name = "wxyc-catalog"
 version = "0.1.0"
+description = "WXYC library catalog access and operations — CatalogSource protocol, SQLite export, artist enrichment, label extraction."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "psycopg[binary]>=3.1",
+    "wxyc-etl>=0.1.0",
+]
 
 [project.optional-dependencies]
-dev = ["pytest>=7.0.0", "pytest-asyncio>=0.21.0", "ruff>=0.4.0"]
+mysql = ["pymysql>=1.0"]
+dev = [
+    "pytest>=7.0.0",
+    "ruff>=0.4.0",
+    "pymysql>=1.0",
+]
+
+[project.scripts]
+wxyc-export-to-sqlite = "wxyc_catalog.export_to_sqlite:export"
+wxyc-enrich-library-artists = "wxyc_catalog.enrich_library_artists:main"
+wxyc-extract-library-labels = "wxyc_catalog.extract_library_labels:main"
 
 [build-system]
 requires = ["setuptools>=65.0"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
