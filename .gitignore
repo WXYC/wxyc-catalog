@@ -5,3 +5,5 @@ dist/
 build/
 .venv/
 *.db
+.pytest_cache/
+*.egg
