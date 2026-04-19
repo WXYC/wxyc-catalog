@@ -82,9 +82,7 @@ class HttpSource:
                     await asyncio.sleep(wait)
             self._last_request_time = asyncio.get_event_loop().time()
 
-    async def _request(
-        self, method: str, path: str, **kwargs: Any
-    ) -> httpx.Response | None:
+    async def _request(self, method: str, path: str, **kwargs: Any) -> httpx.Response | None:
         """Execute an HTTP request with rate limiting and retry.
 
         Returns the response on success, or ``None`` if all retries are exhausted.
@@ -115,9 +113,7 @@ class HttpSource:
                 )
                 await asyncio.sleep(delay)
 
-        logger.warning(
-            "Exhausted %d retries for %s %s", self._max_retries, method.upper(), path
-        )
+        logger.warning("Exhausted %d retries for %s %s", self._max_retries, method.upper(), path)
         return None
 
     async def get(self, path: str, **kwargs: Any) -> httpx.Response | None:
