@@ -25,6 +25,7 @@ def make_library_row(**overrides: Any) -> dict[str, Any]:
         "genre": "Rock",
         "format": "CD",
         "alternate_artist_name": None,
+        "label": None,
     }
     defaults.update(overrides)
     return defaults
@@ -41,6 +42,7 @@ EXAMPLE_LIBRARY_ROWS: list[dict[str, Any]] = [
         release_call_number=1,
         genre="Rock",
         format="CD",
+        label="Sonamos",
     ),
     make_library_row(
         id=9002,
@@ -51,6 +53,7 @@ EXAMPLE_LIBRARY_ROWS: list[dict[str, Any]] = [
         release_call_number=5,
         genre="Rock",
         format="CD",
+        label="Duophonic",
     ),
     make_library_row(
         id=9003,
@@ -61,6 +64,7 @@ EXAMPLE_LIBRARY_ROWS: list[dict[str, Any]] = [
         release_call_number=2,
         genre="Rock",
         format="CD",
+        label="Matador Records",
     ),
     make_library_row(
         id=9004,
@@ -71,6 +75,7 @@ EXAMPLE_LIBRARY_ROWS: list[dict[str, Any]] = [
         release_call_number=1,
         genre="Rock",
         format="Vinyl LP",
+        label="Drag City",
     ),
     make_library_row(
         id=9005,
@@ -81,6 +86,7 @@ EXAMPLE_LIBRARY_ROWS: list[dict[str, Any]] = [
         release_call_number=1,
         genre="Electronic",
         format="Vinyl LP",
+        label="self-released",
     ),
 ]
 

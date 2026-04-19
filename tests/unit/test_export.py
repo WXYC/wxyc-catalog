@@ -149,6 +149,33 @@ class TestExportRowsToSqlite:
         conn.close()
         assert count == 1
 
+    def test_exports_label(self, tmp_path: Path) -> None:
+        """Rows with label should store it in SQLite."""
+        db_path = tmp_path / "library.db"
+        export_rows_to_sqlite(
+            [make_library_row(id=1, artist="Juana Molina", title="DOGA", label="Sonamos")],
+            db_path,
+        )
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute("SELECT label FROM library WHERE id = 1").fetchone()
+        conn.close()
+
+        assert row is not None
+        assert row[0] == "Sonamos"
+
+    def test_exports_null_label(self, tmp_path: Path) -> None:
+        """Rows with None label should store NULL in SQLite."""
+        db_path = tmp_path / "library.db"
+        export_rows_to_sqlite([make_library_row(id=1, label=None)], db_path)
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute("SELECT label FROM library WHERE id = 1").fetchone()
+        conn.close()
+
+        assert row is not None
+        assert row[0] is None
+
     def test_mixed_rows_with_and_without_alternate(self, tmp_path: Path) -> None:
         """Mix of rows with and without alternate_artist_name should export correctly."""
         db_path = tmp_path / "library.db"
