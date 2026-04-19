@@ -33,7 +33,7 @@ class CatalogSource(Protocol):
 
 | Source | Database | Connection |
 |--------|----------|------------|
-| `TubafrenzySource` | MySQL 4.1+ (Kattare) | `mysqlclient` (C-based libmysqlclient), pymysql fallback |
+| `TubafrenzySource` | MySQL 4.1+ (Kattare) | `pymysql` |
 | `BackendServiceSource` | PostgreSQL (Backend-Service) | `psycopg` |
 
 Use the factory function to create a source by name:
@@ -48,7 +48,7 @@ source = create_catalog_source("backend-service", "postgresql://user:pass@host/d
 
 ### MySQL 4.1 Compatibility
 
-Kattare runs MySQL 4.1.22 with old-format (16-byte) password hashes. Modern pure-Python MySQL drivers (pymysql, mysql-connector-python) refuse to authenticate with old passwords on security grounds. The `connect_mysql()` helper uses `mysqlclient` (C-based, backed by libmysqlclient) as the primary driver, which handles old password auth natively. Falls back to `pymysql` when `mysqlclient` is not installed. Credentials in the connection URL are URL-decoded to handle special characters.
+Kattare runs MySQL 4.1.22 with old-format password hashes. No modern Python MySQL driver supports this auth protocol. The daily library sync workflow (`discogs-etl/scripts/sync-library.sh`) uses the MariaDB `mysql` CLI client instead, which handles old auth natively. The `connect_mysql()` function in this package uses pymysql, which works with MySQL 5.x+ servers.
 
 ## Installation
 
@@ -121,7 +121,7 @@ export_rows_to_sqlite(rows, Path("library.db"))
 
 - `psycopg[binary]>=3.1` — PostgreSQL driver
 - `wxyc-etl>=0.1.0` — text normalization (`split_artist_name_contextual`, `is_compilation_artist`)
-- `mysqlclient>=2.0` — C-based MySQL driver with old password auth support (optional, `[mysql]` extra)
+- `pymysql>=1.0` — MySQL driver (optional, `[mysql]` extra)
 
 ## Development
 
