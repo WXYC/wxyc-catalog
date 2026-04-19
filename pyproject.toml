@@ -11,13 +11,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-mysql = ["mysql-connector-python>=8.0"]
+mysql = ["mysqlclient>=2.0"]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
     "pytest-httpx>=0.30.0",
     "ruff>=0.4.0",
-    "mysql-connector-python>=8.0",
+    "mysqlclient>=2.0",
 ]
 
 [project.scripts]

@@ -1,7 +1,7 @@
 """MySQL connection utilities for WXYC catalog databases.
 
-Supports MySQL 4.1+ (Kattare runs MySQL 4.1.22) via mysql-connector-python,
-with pymysql as a fallback for newer servers.
+Supports MySQL 4.1+ (Kattare runs MySQL 4.1.22 with old-format password hashes)
+via mysqlclient (C-based libmysqlclient), with pymysql as a fallback for newer servers.
 """
 
 from __future__ import annotations
@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 def connect_mysql(db_url: str):
     """Connect to MySQL using a URL string.
 
-    Uses mysql-connector-python when available (supports MySQL 4.1's old password
-    auth), falling back to pymysql for newer servers.
+    Tries mysqlclient (C-based) first — its libmysqlclient handles MySQL 4.1's
+    old password auth natively. Falls back to pymysql for newer servers where
+    old password auth isn't needed.
 
     Args:
         db_url: MySQL connection URL (mysql://user:pass@host:port/dbname).
@@ -32,17 +33,16 @@ def connect_mysql(db_url: str):
     database = parsed.path.lstrip("/")
 
     try:
-        import mysql.connector
+        import MySQLdb
 
-        logger.info("Connecting to MySQL via mysql-connector-python (%s:%d)", host, port)
-        return mysql.connector.connect(
+        logger.info("Connecting to MySQL via mysqlclient (%s:%d)", host, port)
+        return MySQLdb.connect(
             host=host,
             port=port,
             user=user,
-            password=password,
-            database=database,
+            passwd=password,
+            db=database,
             charset="utf8",
-            use_pure=True,
         )
     except ImportError:
         pass
