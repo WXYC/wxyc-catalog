@@ -115,7 +115,7 @@ export_rows_to_sqlite(rows, Path("library.db"))
 
 | Repo | Usage |
 |------|-------|
-| [discogs-cache](https://github.com/WXYC/discogs-cache) | CI tests import `CatalogSource` for integration/E2E tests. Pipeline scripts use `enrich_library_artists` and `extract_library_labels`. The daily sync workflow queries MySQL directly via CLI (bypassing Python drivers for MySQL 4.1 compatibility) but replicates the same SQLite schema as `export_rows_to_sqlite`. |
+| [discogs-etl](https://github.com/WXYC/discogs-etl) | CI tests import `CatalogSource` for integration/E2E tests. Pipeline scripts use `enrich_library_artists` and `extract_library_labels`. The daily sync workflow queries MySQL directly via CLI (bypassing Python drivers for MySQL 4.1 compatibility) but replicates the same SQLite schema as `export_rows_to_sqlite`. |
 
 ## Dependencies
 
