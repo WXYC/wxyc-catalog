@@ -34,13 +34,9 @@ class ArchiveSource:
             ``base_path``.
     """
 
-    def __init__(
-        self, base_path: str | Path, *, index_path: str | Path | None = None
-    ) -> None:
+    def __init__(self, base_path: str | Path, *, index_path: str | Path | None = None) -> None:
         self._base_path = Path(base_path)
-        self._index_path = (
-            Path(index_path) if index_path else self._base_path / "index.db"
-        )
+        self._index_path = Path(index_path) if index_path else self._base_path / "index.db"
         self._db: sqlite3.Connection | None = None
 
     def _get_db(self) -> sqlite3.Connection:

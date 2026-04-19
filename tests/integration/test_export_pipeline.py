@@ -199,9 +199,7 @@ class TestLabelExtractionPipeline:
         assert len(rows) == len(EXAMPLE_LABEL_TRIPLES)
 
         # Verify all canonical triples are present
-        read_back = {
-            (r["artist_name"], r["release_title"], r["label_name"]) for r in rows
-        }
+        read_back = {(r["artist_name"], r["release_title"], r["label_name"]) for r in rows}
         assert read_back == EXAMPLE_LABEL_TRIPLES
 
     def test_csv_is_sorted(self, tmp_path: Path) -> None:
@@ -240,9 +238,7 @@ class TestPreExistingIncompatibleSchema:
         conn = sqlite3.connect(self.db_path)
         tables = {
             row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            ).fetchall()
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
         }
         assert "library" in tables
         assert "library_fts" in tables
@@ -256,9 +252,7 @@ class TestPreExistingIncompatibleSchema:
     def test_old_schema_missing_columns_recreated(self) -> None:
         """A library.db with the library table but wrong columns is replaced."""
         conn = sqlite3.connect(self.db_path)
-        conn.execute(
-            "CREATE TABLE library (id INTEGER PRIMARY KEY, name TEXT, category TEXT)"
-        )
+        conn.execute("CREATE TABLE library (id INTEGER PRIMARY KEY, name TEXT, category TEXT)")
         conn.execute("INSERT INTO library VALUES (1, 'Confield', 'Electronic')")
         conn.commit()
         conn.close()
@@ -269,18 +263,22 @@ class TestPreExistingIncompatibleSchema:
         cursor = conn.execute("PRAGMA table_info(library)")
         columns = {row[1] for row in cursor.fetchall()}
         expected = {
-            "id", "title", "artist", "call_letters",
-            "artist_call_number", "release_call_number",
-            "genre", "format", "alternate_artist_name",
+            "id",
+            "title",
+            "artist",
+            "call_letters",
+            "artist_call_number",
+            "release_call_number",
+            "genre",
+            "format",
+            "alternate_artist_name",
         }
         assert columns == expected
 
         count = conn.execute("SELECT COUNT(*) FROM library").fetchone()[0]
         assert count == len(EXAMPLE_LIBRARY_ROWS)
 
-        old = conn.execute(
-            "SELECT COUNT(*) FROM library WHERE title = 'Confield'"
-        ).fetchone()[0]
+        old = conn.execute("SELECT COUNT(*) FROM library WHERE title = 'Confield'").fetchone()[0]
         assert old == 0
         conn.close()
 
@@ -316,9 +314,7 @@ class TestPreExistingIncompatibleSchema:
         conn = sqlite3.connect(self.db_path)
         indexes = {
             row[0]
-            for row in conn.execute(
-                "SELECT name FROM sqlite_master WHERE type='index'"
-            ).fetchall()
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
         }
         assert "idx_artist" in indexes
         assert "idx_title" in indexes
@@ -340,6 +336,5 @@ class TestPreExistingIncompatibleSchema:
 
         new_size = self.db_path.stat().st_size
         assert new_size < old_size, (
-            f"Recreated db ({new_size} bytes) should be smaller than "
-            f"bloated db ({old_size} bytes)"
+            f"Recreated db ({new_size} bytes) should be smaller than bloated db ({old_size} bytes)"
         )
