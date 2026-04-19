@@ -91,18 +91,19 @@ class TubafrenzySource:
             "format",
             "alternate_artist_name",
         ]
-        with self._conn.cursor() as cur:
-            cur.execute("""
-                SELECT
-                    r.ID, r.TITLE, lc.PRESENTATION_NAME, lc.CALL_LETTERS,
-                    lc.CALL_NUMBERS, r.CALL_NUMBERS, g.REFERENCE_NAME,
-                    f.REFERENCE_NAME, r.ALTERNATE_ARTIST_NAME
-                FROM LIBRARY_RELEASE r
-                JOIN LIBRARY_CODE lc ON r.LIBRARY_CODE_ID = lc.ID
-                JOIN FORMAT f ON r.FORMAT_ID = f.ID
-                JOIN GENRE g ON lc.GENRE_ID = g.ID
-            """)
-            rows = cur.fetchall()
+        cur = self._conn.cursor()
+        cur.execute("""
+            SELECT
+                r.ID, r.TITLE, lc.PRESENTATION_NAME, lc.CALL_LETTERS,
+                lc.CALL_NUMBERS, r.CALL_NUMBERS, g.REFERENCE_NAME,
+                f.REFERENCE_NAME, r.ALTERNATE_ARTIST_NAME
+            FROM LIBRARY_RELEASE r
+            JOIN LIBRARY_CODE lc ON r.LIBRARY_CODE_ID = lc.ID
+            JOIN FORMAT f ON r.FORMAT_ID = f.ID
+            JOIN GENRE g ON lc.GENRE_ID = g.ID
+        """)
+        rows = list(cur)
+        cur.close()
         return [dict(zip(columns, row, strict=True)) for row in rows]
 
     def fetch_alternate_names(self) -> set[str]:
