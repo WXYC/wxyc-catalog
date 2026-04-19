@@ -10,6 +10,11 @@ from __future__ import annotations
 import logging
 from urllib.parse import unquote, urlparse
 
+try:
+    import pymysql
+except ImportError:
+    pymysql = None  # type: ignore[assignment]
+
 logger = logging.getLogger(__name__)
 
 
@@ -62,7 +67,8 @@ def connect_mysql(db_url: str):
     except ImportError:
         pass
 
-    import pymysql
+    if pymysql is None:
+        raise ImportError("No MySQL driver available (tried mariadb, mysqlclient, pymysql)")
 
     logger.info("Connecting to MySQL via pymysql (%s:%d)", host, port)
     return pymysql.connect(
