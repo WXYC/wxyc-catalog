@@ -43,7 +43,6 @@ def connect_mysql(db_url: str):
             database=database,
             charset="utf8",
             use_pure=True,
-            allow_old_password=True,
         )
     except ImportError:
         pass
