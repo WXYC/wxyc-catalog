@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from tests.factories import make_library_row
-from wxyc_catalog.export_to_sqlite import export_rows_to_sqlite, format_size
+from wxyc_catalog.export_to_sqlite import export, export_rows_to_sqlite, format_size, parse_args
 
 
 class TestExportRowsToSqlite:
@@ -192,6 +193,213 @@ class TestExportRowsToSqlite:
         conn.close()
 
         assert results == [(1, "Plug"), (2, None)]
+
+    def test_empty_rows_creates_schema_only(self, tmp_path: Path) -> None:
+        """Zero rows should create table, FTS, and indexes but no data."""
+        db_path = tmp_path / "library.db"
+        export_rows_to_sqlite([], db_path)
+
+        conn = sqlite3.connect(db_path)
+        # Table exists
+        tables = {
+            row[0]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='table'").fetchall()
+        }
+        assert "library" in tables
+        # FTS exists
+        assert "library_fts" in tables
+        # Indexes exist
+        indexes = {
+            row[0]
+            for row in conn.execute("SELECT name FROM sqlite_master WHERE type='index'").fetchall()
+        }
+        assert "idx_artist" in indexes
+        assert "idx_title" in indexes
+        assert "idx_alternate_artist" in indexes
+        # No data
+        count = conn.execute("SELECT COUNT(*) FROM library").fetchone()[0]
+        conn.close()
+        assert count == 0
+
+    def test_row_with_all_none_values(self, tmp_path: Path) -> None:
+        """A row with id=1 and all other fields None should insert without error."""
+        db_path = tmp_path / "library.db"
+        row = make_library_row(
+            id=1,
+            title=None,
+            artist=None,
+            call_letters=None,
+            artist_call_number=None,
+            release_call_number=None,
+            genre=None,
+            format=None,
+            alternate_artist_name=None,
+        )
+        export_rows_to_sqlite([row], db_path)
+
+        conn = sqlite3.connect(db_path)
+        result = conn.execute("SELECT * FROM library WHERE id = 1").fetchone()
+        conn.close()
+
+        assert result is not None
+        assert result[0] == 1
+        # All other columns are None
+        assert all(v is None for v in result[1:])
+
+    def test_unicode_characters_round_trip(self, tmp_path: Path) -> None:
+        """Unicode characters (accented, non-Latin) should survive the round trip."""
+        db_path = tmp_path / "library.db"
+        row = make_library_row(
+            id=1,
+            title="\u00c1g\u00e6tis byrjun",
+            artist="Sigur R\u00f3s",
+        )
+        export_rows_to_sqlite([row], db_path)
+
+        conn = sqlite3.connect(db_path)
+        result = conn.execute("SELECT artist, title FROM library WHERE id = 1").fetchone()
+        conn.close()
+
+        assert result[0] == "Sigur R\u00f3s"
+        assert result[1] == "\u00c1g\u00e6tis byrjun"
+
+    def test_special_characters_in_artist(self, tmp_path: Path) -> None:
+        """Ampersands and other special characters should be stored correctly."""
+        db_path = tmp_path / "library.db"
+        row = make_library_row(
+            id=1,
+            title="Duke Ellington & John Coltrane",
+            artist="Duke Ellington & John Coltrane",
+        )
+        export_rows_to_sqlite([row], db_path)
+
+        conn = sqlite3.connect(db_path)
+        result = conn.execute("SELECT artist FROM library WHERE id = 1").fetchone()
+        conn.close()
+
+        assert result[0] == "Duke Ellington & John Coltrane"
+
+
+class TestParseArgs:
+    """Tests for parse_args() CLI argument parsing."""
+
+    def test_required_args_missing(self) -> None:
+        """Missing required args should cause SystemExit."""
+        with pytest.raises(SystemExit):
+            parse_args([])
+
+    def test_default_output(self) -> None:
+        """Default --output should be Path('library.db')."""
+        args = parse_args(
+            [
+                "--catalog-source",
+                "tubafrenzy",
+                "--catalog-db-url",
+                "mysql://u:p@h/db",
+            ]
+        )
+        assert args.output == Path("library.db")
+
+    def test_invalid_source_rejected(self) -> None:
+        """An invalid --catalog-source value should cause SystemExit."""
+        with pytest.raises(SystemExit):
+            parse_args(
+                [
+                    "--catalog-source",
+                    "invalid-source",
+                    "--catalog-db-url",
+                    "mysql://u:p@h/db",
+                ]
+            )
+
+    def test_custom_output(self) -> None:
+        """--output should accept a custom path."""
+        args = parse_args(
+            [
+                "--catalog-source",
+                "tubafrenzy",
+                "--catalog-db-url",
+                "mysql://u:p@h/db",
+                "--output",
+                "/tmp/custom.db",
+            ]
+        )
+        assert args.output == Path("/tmp/custom.db")
+
+
+class TestExportCli:
+    """Tests for the export() CLI entry point."""
+
+    @patch("wxyc_catalog.export_to_sqlite.create_catalog_source")
+    def test_calls_source_and_writes_db(self, mock_create, tmp_path: Path) -> None:
+        """export() should call create_catalog_source, fetch rows, and write a database."""
+        mock_source = MagicMock()
+        mock_source.fetch_library_rows.return_value = [
+            make_library_row(id=1, artist="Autechre", title="Confield"),
+            make_library_row(id=2, artist="Stereolab", title="Aluminum Tunes"),
+        ]
+        mock_create.return_value = mock_source
+
+        db_path = tmp_path / "output.db"
+        export(
+            [
+                "--catalog-source",
+                "tubafrenzy",
+                "--catalog-db-url",
+                "mysql://u:p@h/db",
+                "--output",
+                str(db_path),
+            ]
+        )
+
+        mock_create.assert_called_once_with("tubafrenzy", "mysql://u:p@h/db")
+        mock_source.fetch_library_rows.assert_called_once()
+
+        # Verify the database was actually written
+        conn = sqlite3.connect(db_path)
+        count = conn.execute("SELECT COUNT(*) FROM library").fetchone()[0]
+        conn.close()
+        assert count == 2
+
+    @patch("wxyc_catalog.export_to_sqlite.create_catalog_source")
+    def test_closes_source(self, mock_create, tmp_path: Path) -> None:
+        """source.close() should always be called, even on success."""
+        mock_source = MagicMock()
+        mock_source.fetch_library_rows.return_value = [make_library_row(id=1)]
+        mock_create.return_value = mock_source
+
+        db_path = tmp_path / "output.db"
+        export(
+            [
+                "--catalog-source",
+                "tubafrenzy",
+                "--catalog-db-url",
+                "mysql://u:p@h/db",
+                "--output",
+                str(db_path),
+            ]
+        )
+
+        mock_source.close.assert_called_once()
+
+    @patch("wxyc_catalog.export_to_sqlite.create_catalog_source")
+    def test_closes_source_on_error(self, mock_create) -> None:
+        """source.close() should be called even if fetch_library_rows raises."""
+        mock_source = MagicMock()
+        mock_source.fetch_library_rows.side_effect = RuntimeError("connection lost")
+        mock_create.return_value = mock_source
+
+        with pytest.raises(RuntimeError, match="connection lost"):
+            export(
+                [
+                    "--catalog-source",
+                    "tubafrenzy",
+                    "--catalog-db-url",
+                    "mysql://u:p@h/db",
+                ]
+            )
+
+        mock_source.close.assert_called_once()
 
 
 class TestFormatSize:

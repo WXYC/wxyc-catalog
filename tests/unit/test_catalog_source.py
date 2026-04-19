@@ -151,6 +151,60 @@ class TestTubafrenzySourceFetchLibraryRows:
         assert len(rows) == 1
         assert rows[0]["label"] is None
 
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_closes_cursor(self, mock_connect) -> None:
+        cursor = _make_mock_cursor(
+            [(1, "DOGA", "Juana Molina", "JM", 42, 1, "Rock", "LP", None, "Sonamos")]
+        )
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        source.fetch_library_rows()
+
+        cursor.close.assert_called_once()
+
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_empty_result(self, mock_connect) -> None:
+        cursor = _make_mock_cursor([])
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        rows = source.fetch_library_rows()
+
+        assert rows == []
+
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_preserves_order(self, mock_connect) -> None:
+        raw_rows = [
+            (1, "Confield", "Autechre", "EL", 10, 1, "Electronic", "CD", None, "Warp"),
+            (2, "Aluminum Tunes", "Stereolab", "RO", 87, 5, "Rock", "CD", None, "Duophonic"),
+            (3, "DOGA", "Juana Molina", "RO", 42, 1, "Rock", "CD", None, "Sonamos"),
+        ]
+        cursor = _make_mock_cursor(raw_rows)
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        rows = source.fetch_library_rows()
+
+        assert len(rows) == 3
+        assert rows[0]["artist"] == "Autechre"
+        assert rows[1]["artist"] == "Stereolab"
+        assert rows[2]["artist"] == "Juana Molina"
+
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_sql_contains_joins(self, mock_connect) -> None:
+        cursor = _make_mock_cursor([])
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        source.fetch_library_rows()
+
+        sql = cursor.execute.call_args[0][0]
+        assert "LIBRARY_RELEASE" in sql
+        assert "LIBRARY_CODE" in sql
+        assert "FORMAT" in sql
+        assert "GENRE" in sql
+
 
 class TestTubafrenzySourceFetchAlternateNames:
     """TubafrenzySource.fetch_alternate_names returns set of name strings."""
@@ -163,6 +217,15 @@ class TestTubafrenzySourceFetchAlternateNames:
         source = TubafrenzySource("mysql://user:pass@host/db")
         names = source.fetch_alternate_names()
         assert names == {"Body Count", "Ice Cube"}
+
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_empty_result(self, mock_connect) -> None:
+        cursor = _make_mock_cursor([])
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        names = source.fetch_alternate_names()
+        assert names == set()
 
     @patch("wxyc_catalog.catalog_source.connect_mysql")
     def test_strips_whitespace(self, mock_connect) -> None:
@@ -193,6 +256,15 @@ class TestTubafrenzySourceFetchCrossReferencedArtists:
         names = source.fetch_cross_referenced_artists()
         assert names == {"Ice-T", "Body Count"}
 
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_empty_result(self, mock_connect) -> None:
+        cursor = _make_mock_cursor([])
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        names = source.fetch_cross_referenced_artists()
+        assert names == set()
+
 
 class TestTubafrenzySourceFetchReleaseCrossRefArtists:
     @patch("wxyc_catalog.catalog_source.connect_mysql")
@@ -204,8 +276,26 @@ class TestTubafrenzySourceFetchReleaseCrossRefArtists:
         names = source.fetch_release_cross_ref_artists()
         assert names == {"John Coltrane"}
 
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_empty_result(self, mock_connect) -> None:
+        cursor = _make_mock_cursor([])
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        names = source.fetch_release_cross_ref_artists()
+        assert names == set()
+
 
 class TestTubafrenzySourceFetchLibraryLabels:
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_empty_result(self, mock_connect) -> None:
+        cursor = _make_mock_cursor([])
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        labels = source.fetch_library_labels()
+        assert labels == set()
+
     @patch("wxyc_catalog.catalog_source.connect_mysql")
     def test_returns_set_of_tuples(self, mock_connect) -> None:
         cursor = _make_mock_cursor(
