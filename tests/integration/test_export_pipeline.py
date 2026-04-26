@@ -65,6 +65,7 @@ class TestExportPipeline:
             "genre",
             "format",
             "alternate_artist_name",
+            "label",
         }
         assert columns == expected
 
@@ -272,6 +273,7 @@ class TestPreExistingIncompatibleSchema:
             "genre",
             "format",
             "alternate_artist_name",
+            "label",
         }
         assert columns == expected
 

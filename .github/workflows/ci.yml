@@ -37,3 +37,30 @@ jobs:
           pip install -e .
           pip install pytest pytest-asyncio pytest-httpx
       - run: pytest tests/unit/ -v
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install wxyc-etl from git (Rust/PyO3)
+        run: |
+          pip install maturin
+          git clone --depth 1 --branch etl-unification/1g-pyo3-bindings https://github.com/WXYC/wxyc-etl.git /tmp/wxyc-etl
+          cd /tmp/wxyc-etl/wxyc-etl-python && maturin build --release && pip install /tmp/wxyc-etl/target/wheels/*.whl
+      - name: Install package and test dependencies
+        run: |
+          pip install pymysql
+          pip install -e .
+          pip install pytest pytest-asyncio pytest-httpx
+      - run: pytest tests/integration/ -v -m "integration"
+
+  marker-sync:
+    uses: WXYC/wxyc-etl/.github/workflows/check-ci-marker-sync.yml@main
+    with:
+      repo-path: "."
+      workflows-dir: ".github/workflows"
+      tests-dir: "tests"
