@@ -34,7 +34,7 @@ pytest -m integration     # integration tests (SQLite-based, no external DB)
 pytest -m '' -v           # all tests
 ```
 
-Markers in use: `unit`, `integration`, `slow`. The `addopts` in `pyproject.toml` excludes `integration` and `slow` from the default run; CI runs them in a dedicated `integration` job. (Orphan markers `postgres`, `e2e`, `parity` were removed — re-add them if/when actual tests appear.)
+Markers follow the canonical WXYC 6-marker convention (`unit`, `postgres`, `integration`, `e2e`, `parity`, `slow`) declared in every Python repo for org-wide consistency (see `plans/test-patterns.md`). The `addopts` in `pyproject.toml` deselects everything except `unit` so `pytest` with no arguments runs only unit tests. CI runs `integration` in a dedicated job; the marker-sync workflow guards against silent-deselection regressions for any marker actually used by a test in this repo.
 
 ### Test Layout
 
