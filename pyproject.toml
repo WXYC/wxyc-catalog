@@ -40,17 +40,10 @@ target-version = "py311"
 select = ["E", "F", "I", "W"]
 
 [tool.pytest.ini_options]
-# Canonical WXYC 6-marker block (see plans/test-patterns.md). All Python repos
-# declare the same six markers with identical semantics for org-wide
-# consistency, even when this repo has no test currently using a given marker.
-markers = [
-    "unit: pure logic tests, no external dependencies",
-    "postgres: needs PostgreSQL (gated by DATABASE_URL_TEST)",
-    "integration: needs external service or fixture data",
-    "e2e: full pipeline end-to-end test",
-    "parity: old vs new implementation comparison",
-    "slow: marks tests as slow",
-]
-addopts = "-m 'not integration and not postgres and not e2e and not parity and not slow'"
+# Architecture A (see plans/test-patterns.md, Section 3): markers exist to route
+# CI by infrastructure. wxyc-catalog has no infrastructure dependencies — it is
+# SQLite-only with no PostgreSQL, no external APIs, and no docker stack — so it
+# declares no markers. The tests in tests/integration/ are unmarked and run in
+# the default test job alongside tests/unit/.
 testpaths = ["tests"]
 asyncio_mode = "auto"

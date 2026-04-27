@@ -29,12 +29,12 @@ src/wxyc_catalog/
 ## Testing
 
 ```bash
-pytest                    # unit tests only (default, no external deps)
-pytest -m integration     # integration tests (SQLite-based, no external DB)
-pytest -m '' -v           # all tests
+pytest                    # all tests (no markers needed — this repo has no infra deps)
+pytest tests/unit/ -v     # unit tests only
+pytest tests/integration/ # integration tests only (SQLite-based)
 ```
 
-Markers follow the canonical WXYC 6-marker convention (`unit`, `postgres`, `integration`, `e2e`, `parity`, `slow`) declared in every Python repo for org-wide consistency (see `plans/test-patterns.md`). The `addopts` in `pyproject.toml` deselects everything except `unit` so `pytest` with no arguments runs only unit tests. CI runs `integration` in a dedicated job; the marker-sync workflow guards against silent-deselection regressions for any marker actually used by a test in this repo.
+Markers follow architecture A (see `plans/test-patterns.md`, Section 3): markers exist to route CI by infrastructure, and wxyc-catalog has no infrastructure dependencies — it is SQLite-only with no PostgreSQL, no external APIs, and no docker stack. The repo therefore declares zero markers in `pyproject.toml`. The tests in `tests/integration/` are unmarked and run alongside `tests/unit/` in the default `test` CI job. The `marker-sync` CI job (reusable workflow from wxyc-etl) guards against silent-deselection regressions if markers are ever introduced.
 
 ### Test Layout
 
