@@ -19,8 +19,6 @@ from wxyc_catalog.enrich_library_artists import extract_base_artists, merge_and_
 from wxyc_catalog.export_to_sqlite import export_rows_to_sqlite
 from wxyc_catalog.extract_library_labels import write_library_labels_csv
 
-pytestmark = pytest.mark.integration
-
 
 class TestExportPipeline:
     """Full export flow: rows -> SQLite library.db with FTS5."""
