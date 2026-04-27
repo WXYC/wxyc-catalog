@@ -34,7 +34,7 @@ pytest tests/unit/ -v     # unit tests only
 pytest tests/integration/ # integration tests only (SQLite-based)
 ```
 
-Markers follow architecture A (see `plans/test-patterns.md`, Section 3): markers exist to route CI by infrastructure, and wxyc-catalog has no infrastructure dependencies — it is SQLite-only with no PostgreSQL, no external APIs, and no docker stack. The repo therefore declares zero markers in `pyproject.toml`. The tests in `tests/integration/` are unmarked and run alongside `tests/unit/` in the default `test` CI job. The `marker-sync` CI job (reusable workflow from wxyc-etl) guards against silent-deselection regressions if markers are ever introduced.
+Markers follow architecture A (see [the wiki test-patterns doc](https://github.com/WXYC/wiki/blob/main/plans/test-patterns.md), Section 3): markers exist to route CI by infrastructure, and wxyc-catalog has no infrastructure dependencies — it is SQLite-only with no PostgreSQL, no external APIs, and no docker stack. The repo therefore declares zero markers in `pyproject.toml`. The tests in `tests/integration/` are unmarked and run alongside `tests/unit/` in the default `test` CI job. The `marker-sync` CI job (reusable workflow from wxyc-etl) guards against silent-deselection regressions if markers are ever introduced.
 
 ### Test Layout
 
