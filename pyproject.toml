@@ -2,6 +2,7 @@
 name = "wxyc-catalog"
 version = "0.1.0"
 description = "WXYC library catalog access and operations — CatalogSource protocol, SQLite export, artist enrichment, label extraction."
+readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "asyncpg>=0.29.0",
@@ -9,6 +10,11 @@ dependencies = [
     "psycopg[binary]>=3.1",
     "wxyc-etl>=0.1.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/WXYC/wxyc-catalog"
+Repository = "https://github.com/WXYC/wxyc-catalog"
+Issues = "https://github.com/WXYC/wxyc-catalog/issues"
 
 [project.optional-dependencies]
 mysql = ["pymysql>=1.0"]
