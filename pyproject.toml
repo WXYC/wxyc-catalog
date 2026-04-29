@@ -1,6 +1,6 @@
 [project]
 name = "wxyc-catalog"
-version = "0.1.0"
+version = "0.1.1"
 description = "WXYC library catalog access and operations — CatalogSource protocol, SQLite export, artist enrichment, label extraction."
 readme = "README.md"
 requires-python = ">=3.11"
