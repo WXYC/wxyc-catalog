@@ -1,0 +1,88 @@
+name: Release
+
+# Tag-driven publish to PyPI for wxyc-catalog. Mirrors the wxyc-etl release
+# workflow, sans maturin — wxyc-catalog is pure Python with a setuptools build.
+#
+#   git tag v0.1.0 && git push origin v0.1.0
+#
+# A `workflow_dispatch` run with `dry_run: true` (the default) is the safe way
+# to rehearse the pipeline without uploading. It runs the full version check +
+# `python -m build` and skips the actual upload step.
+#
+# Required repo secret (set up once in GitHub → Settings → Secrets):
+#   PYPI_API_TOKEN  — API token from https://pypi.org/manage/account/token/
+#                     (scope it to the `wxyc-catalog` project after first publish)
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Skip PyPI upload (rehearsal mode)"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        name: Verify pyproject.toml version matches tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT_VERSION=$(awk -F'"' '/^version =/ { print $2; exit }' pyproject.toml)
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            TAG_VERSION="${GITHUB_REF#refs/tags/v}"
+            if [[ "$TAG_VERSION" != "$PROJECT_VERSION" ]]; then
+              echo "::error ::Tag $TAG_VERSION does not match pyproject.toml version $PROJECT_VERSION"
+              exit 1
+            fi
+          fi
+          echo "Project version: $PROJECT_VERSION"
+          echo "version=$PROJECT_VERSION" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: verify
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build sdist + wheel
+        run: |
+          pip install --upgrade build
+          python -m build
+      - name: List artifacts
+        run: ls -la dist/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist
+      - name: Skip upload (dry-run)
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          echo "Dry-run mode: would upload the following artifacts:"
+          ls -la dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && !inputs.dry_run) }}
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
