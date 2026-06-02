@@ -112,14 +112,14 @@ class TestMergeAndWrite:
         output = tmp_path / "artists.txt"
         merge_and_write(
             base={"Alpha"},
-            alternates={"Various Artists", "Soundtrack Orchestra"},
+            alternates={"Various Artists", "V/A"},
             cross_refs=set(),
             release_cross_refs=set(),
             output=output,
         )
         lines = output.read_text().splitlines()
         assert "Various Artists" not in lines
-        assert "Soundtrack Orchestra" not in lines
+        assert "V/A" not in lines
         assert "Alpha" in lines
 
     def test_preserves_original_case(self, tmp_path: Path) -> None:
