@@ -26,6 +26,7 @@ def make_library_row(**overrides: Any) -> dict[str, Any]:
         "format": "CD",
         "alternate_artist_name": None,
         "label": None,
+        "cross_reference_names": None,
     }
     defaults.update(overrides)
     return defaults

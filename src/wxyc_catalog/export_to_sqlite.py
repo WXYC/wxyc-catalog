@@ -37,7 +37,7 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
     Args:
         rows: List of dicts with keys: id, title, artist, call_letters,
               artist_call_number, release_call_number, genre, format,
-              alternate_artist_name, label.
+              alternate_artist_name, label, cross_reference_names.
         output_path: Path where the SQLite database will be written.
                      An existing file at this path will be removed first.
     """
@@ -58,7 +58,8 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
             genre TEXT,
             format TEXT,
             alternate_artist_name TEXT,
-            label TEXT
+            label TEXT,
+            cross_reference_names TEXT
         )
     """)
 
@@ -77,8 +78,8 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
             """
             INSERT INTO library (id, title, artist, call_letters, artist_call_number,
                                  release_call_number, genre, format, alternate_artist_name,
-                                 label)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 label, cross_reference_names)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 row["id"],
@@ -91,6 +92,7 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
                 row["format"],
                 row.get("alternate_artist_name"),
                 row.get("label"),
+                row.get("cross_reference_names"),
             ),
         )
 

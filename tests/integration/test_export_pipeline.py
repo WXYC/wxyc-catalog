@@ -64,6 +64,7 @@ class TestExportPipeline:
             "format",
             "alternate_artist_name",
             "label",
+            "cross_reference_names",
         }
         assert columns == expected
 
@@ -272,6 +273,7 @@ class TestPreExistingIncompatibleSchema:
             "format",
             "alternate_artist_name",
             "label",
+            "cross_reference_names",
         }
         assert columns == expected
 
