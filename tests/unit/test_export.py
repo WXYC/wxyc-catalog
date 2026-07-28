@@ -177,6 +177,41 @@ class TestExportRowsToSqlite:
         assert row is not None
         assert row[0] is None
 
+    def test_exports_cross_reference_names(self, tmp_path: Path) -> None:
+        """Rows with cross_reference_names should store it in SQLite (WXYC/discogs-etl#334)."""
+        db_path = tmp_path / "library.db"
+        export_rows_to_sqlite(
+            [
+                make_library_row(
+                    id=1,
+                    artist="Burning Star Core",
+                    title='"In The Blink of an Eye" 7-inch',
+                    alternate_artist_name="C.S. Yeh",
+                    cross_reference_names="C. Spencer Yeh",
+                )
+            ],
+            db_path,
+        )
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute("SELECT cross_reference_names FROM library WHERE id = 1").fetchone()
+        conn.close()
+
+        assert row is not None
+        assert row[0] == "C. Spencer Yeh"
+
+    def test_exports_null_cross_reference_names(self, tmp_path: Path) -> None:
+        """Rows with no cross_reference_names should store NULL in SQLite."""
+        db_path = tmp_path / "library.db"
+        export_rows_to_sqlite([make_library_row(id=1, cross_reference_names=None)], db_path)
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute("SELECT cross_reference_names FROM library WHERE id = 1").fetchone()
+        conn.close()
+
+        assert row is not None
+        assert row[0] is None
+
     def test_mixed_rows_with_and_without_alternate(self, tmp_path: Path) -> None:
         """Mix of rows with and without alternate_artist_name should export correctly."""
         db_path = tmp_path / "library.db"

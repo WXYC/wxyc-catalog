@@ -25,7 +25,8 @@ class CatalogSource(Protocol):
 
     def fetch_library_rows(self) -> list[dict[str, Any]]:
         """Return library rows. Keys: id, title, artist, call_letters,
-        artist_call_number, release_call_number, genre, format, alternate_artist_name, label."""
+        artist_call_number, release_call_number, genre, format, alternate_artist_name, label,
+        cross_reference_names."""
         ...
 
     def fetch_alternate_names(self) -> set[str]:
@@ -91,6 +92,7 @@ class TubafrenzySource:
             "format",
             "alternate_artist_name",
             "label",
+            "cross_reference_names",
         ]
         cur = self._conn.cursor()
         cur.execute("""
@@ -98,7 +100,21 @@ class TubafrenzySource:
                 r.ID, r.TITLE, lc.PRESENTATION_NAME, lc.CALL_LETTERS,
                 lc.CALL_NUMBERS, r.CALL_NUMBERS, g.REFERENCE_NAME,
                 f.REFERENCE_NAME, r.ALTERNATE_ARTIST_NAME,
-                label_sub.label_name
+                label_sub.label_name,
+                (
+                    SELECT GROUP_CONCAT(DISTINCT xlc.PRESENTATION_NAME SEPARATOR ' | ')
+                    FROM LIBRARY_CODE_CROSS_REFERENCE xcr, LIBRARY_CODE xlc
+                    WHERE xlc.ID = CASE
+                              WHEN xcr.CROSS_REFERENCING_ARTIST_ID = lc.ID
+                                  THEN xcr.CROSS_REFERENCED_LIBRARY_CODE_ID
+                              WHEN xcr.CROSS_REFERENCED_LIBRARY_CODE_ID = lc.ID
+                                  THEN xcr.CROSS_REFERENCING_ARTIST_ID
+                              ELSE NULL
+                          END
+                      AND (xcr.CROSS_REFERENCING_ARTIST_ID = lc.ID
+                           OR xcr.CROSS_REFERENCED_LIBRARY_CODE_ID = lc.ID)
+                      AND xlc.ID != lc.ID
+                ) AS cross_reference_names
             FROM LIBRARY_RELEASE r
             JOIN LIBRARY_CODE lc ON r.LIBRARY_CODE_ID = lc.ID
             JOIN FORMAT f ON r.FORMAT_ID = f.ID
