@@ -212,6 +212,32 @@ class TestExportRowsToSqlite:
         assert row is not None
         assert row[0] is None
 
+    def test_release_call_letters_is_appended_after_existing_columns(self, tmp_path: Path) -> None:
+        """The new column is additive (WXYC/wxyc-catalog#38): every pre-existing column
+        keeps its ordinal position, so a positional reader of an older library.db reads
+        a newer one the same way, and release_call_letters lands last."""
+        db_path = tmp_path / "library.db"
+        export_rows_to_sqlite([make_library_row()], db_path)
+
+        conn = sqlite3.connect(db_path)
+        columns = [row[1] for row in conn.execute("PRAGMA table_info(library)").fetchall()]
+        conn.close()
+
+        assert columns == [
+            "id",
+            "title",
+            "artist",
+            "call_letters",
+            "artist_call_number",
+            "release_call_number",
+            "genre",
+            "format",
+            "alternate_artist_name",
+            "label",
+            "cross_reference_names",
+            "release_call_letters",
+        ]
+
     def test_exports_release_call_letters(self, tmp_path: Path) -> None:
         """A row with a volume letter (WXYC/wxyc-catalog#38) should store it in SQLite."""
         db_path = tmp_path / "library.db"
