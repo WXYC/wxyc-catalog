@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -349,7 +350,9 @@ class TestTubafrenzySourceFetchLibraryRows:
     @patch("wxyc_catalog.catalog_source.connect_mysql")
     def test_sql_selects_release_call_letters(self, mock_connect) -> None:
         """The SELECT must take r.CALL_LETTERS (the release's own volume letter),
-        not just lc.CALL_LETTERS (the LIBRARY_CODE artist code)."""
+        not just lc.CALL_LETTERS (the LIBRARY_CODE artist code), and in the slot right
+        after r.CALL_NUMBERS: the mocked rows are positional, so only the SQL text can
+        pin which value lands under the release_call_letters key."""
         cursor = _make_mock_cursor([])
         mock_connect.return_value.cursor.return_value = cursor
 
@@ -357,7 +360,7 @@ class TestTubafrenzySourceFetchLibraryRows:
         source.fetch_library_rows()
 
         sql = cursor.execute.call_args[0][0]
-        assert "r.CALL_LETTERS" in sql
+        assert re.search(r"r\.CALL_NUMBERS,\s*r\.CALL_LETTERS,\s*g\.REFERENCE_NAME", sql)
 
     @pytest.mark.parametrize(("raw", "expected"), [("", None), ("b", "B")])
     @patch("wxyc_catalog.catalog_source.connect_mysql")
@@ -579,8 +582,9 @@ class TestBackendServiceSourceFetchLibraryRows:
 
     @patch("wxyc_catalog.catalog_source.psycopg")
     def test_returns_release_call_letters(self, mock_psycopg) -> None:
-        """WXYC/wxyc-catalog#38: Backend-Service's own ETL aliases
-        l.code_volume_letters AS release_call_letters for this same source column."""
+        """WXYC/wxyc-catalog#38: Backend-Service stores the volume letter as
+        l.code_volume_letters; its library ETL reads the same tubafrenzy column as
+        lr.CALL_LETTERS AS release_call_letters, the key this source emits."""
         _, cursor = _make_pg_mock()
         mock_psycopg.connect.return_value.cursor.return_value.__enter__ = MagicMock(
             return_value=cursor
@@ -638,8 +642,9 @@ class TestBackendServiceSourceFetchLibraryRows:
         source.fetch_library_rows()
 
         sql = cursor.execute.call_args[0][0]
-        assert "code_volume_letters" in sql
-        assert "release_call_letters" in sql
+        # The column names come from the real cursor.description, so the alias in the
+        # SQL is what decides the key; pin the pairing, not two independent substrings.
+        assert re.search(r"l\.code_volume_letters\s+AS\s+release_call_letters\b", sql)
 
     @patch("wxyc_catalog.catalog_source.psycopg")
     def test_normalizes_release_call_letters(self, mock_psycopg) -> None:
