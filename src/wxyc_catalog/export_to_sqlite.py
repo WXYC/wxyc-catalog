@@ -12,7 +12,7 @@ import logging
 import sqlite3
 from pathlib import Path
 
-from wxyc_catalog.catalog_source import create_catalog_source
+from wxyc_catalog.catalog_source import create_catalog_source, normalize_volume_letters
 
 logger = logging.getLogger(__name__)
 
@@ -77,7 +77,7 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
     """)
 
     for row in rows:
-        release_call_letters = row.get("release_call_letters") or None
+        release_call_letters = normalize_volume_letters(row.get("release_call_letters"))
         cur.execute(
             """
             INSERT INTO library (id, title, artist, call_letters, artist_call_number,
