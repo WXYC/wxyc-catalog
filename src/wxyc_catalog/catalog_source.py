@@ -74,8 +74,7 @@ def normalize_volume_letters(value: str | None) -> str | None:
 def _library_row(columns: Sequence[str], values: Sequence[Any]) -> dict[str, Any]:
     """Zip one fetch_library_rows result row into a dict, folding its volume letter."""
     row = dict(zip(columns, values, strict=True))
-    if "release_call_letters" in row:
-        row["release_call_letters"] = normalize_volume_letters(row["release_call_letters"])
+    row["release_call_letters"] = normalize_volume_letters(row["release_call_letters"])
     return row
 
 
