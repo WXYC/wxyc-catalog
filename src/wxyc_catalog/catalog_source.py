@@ -25,8 +25,14 @@ class CatalogSource(Protocol):
 
     def fetch_library_rows(self) -> list[dict[str, Any]]:
         """Return library rows. Keys: id, title, artist, call_letters,
-        artist_call_number, release_call_number, genre, format, alternate_artist_name, label,
-        cross_reference_names."""
+        artist_call_number, release_call_number, release_call_letters, genre, format,
+        alternate_artist_name, label, cross_reference_names.
+
+        release_call_letters is the per-release volume letter that distinguishes
+        the items of a multi-volume set (e.g. 'B' of a seven-volume A-G set),
+        distinct from call_letters (the LIBRARY_CODE artist code, e.g. 'V/A').
+        Backend-Service stores this same column as
+        wxyc_schema.library.code_volume_letters."""
         ...
 
     def fetch_alternate_names(self) -> set[str]:
@@ -88,6 +94,7 @@ class TubafrenzySource:
             "call_letters",
             "artist_call_number",
             "release_call_number",
+            "release_call_letters",
             "genre",
             "format",
             "alternate_artist_name",
@@ -98,7 +105,7 @@ class TubafrenzySource:
         cur.execute("""
             SELECT
                 r.ID, r.TITLE, lc.PRESENTATION_NAME, lc.CALL_LETTERS,
-                lc.CALL_NUMBERS, r.CALL_NUMBERS, g.REFERENCE_NAME,
+                lc.CALL_NUMBERS, r.CALL_NUMBERS, r.CALL_LETTERS, g.REFERENCE_NAME,
                 f.REFERENCE_NAME, r.ALTERNATE_ARTIST_NAME,
                 label_sub.label_name,
                 (
@@ -212,6 +219,7 @@ class BackendServiceSource:
                     a.code_letters AS call_letters,
                     gac.artist_genre_code AS artist_call_number,
                     l.code_number AS release_call_number,
+                    l.code_volume_letters AS release_call_letters,
                     g.genre_name AS genre, f.format_name AS format,
                     l.alternate_artist_name,
                     NULL AS label

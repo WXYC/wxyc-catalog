@@ -22,6 +22,7 @@ def make_library_row(**overrides: Any) -> dict[str, Any]:
         "call_letters": "RO",
         "artist_call_number": 42,
         "release_call_number": 1,
+        "release_call_letters": None,
         "genre": "Rock",
         "format": "CD",
         "alternate_artist_name": None,

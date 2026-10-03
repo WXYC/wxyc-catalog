@@ -118,7 +118,7 @@ class TestTubafrenzySourceFetchLibraryRows:
     @patch("wxyc_catalog.catalog_source.connect_mysql")
     def test_returns_list_of_dicts(self, mock_connect) -> None:
         cursor = _make_mock_cursor(
-            [(1, "DOGA", "Juana Molina", "JM", 42, 1, "Rock", "LP", None, "Sonamos", None)]
+            [(1, "DOGA", "Juana Molina", "JM", 42, 1, None, "Rock", "LP", None, "Sonamos", None)]
         )
         mock_connect.return_value.cursor.return_value = cursor
 
@@ -132,6 +132,7 @@ class TestTubafrenzySourceFetchLibraryRows:
         assert rows[0]["call_letters"] == "JM"
         assert rows[0]["artist_call_number"] == 42
         assert rows[0]["release_call_number"] == 1
+        assert rows[0]["release_call_letters"] is None
         assert rows[0]["genre"] == "Rock"
         assert rows[0]["format"] == "LP"
         assert rows[0]["alternate_artist_name"] is None
@@ -141,7 +142,7 @@ class TestTubafrenzySourceFetchLibraryRows:
     def test_returns_null_label(self, mock_connect) -> None:
         """Rows without a matching rotation release should have label=None."""
         cursor = _make_mock_cursor(
-            [(1, "DOGA", "Juana Molina", "JM", 42, 1, "Rock", "LP", None, None, None)]
+            [(1, "DOGA", "Juana Molina", "JM", 42, 1, None, "Rock", "LP", None, None, None)]
         )
         mock_connect.return_value.cursor.return_value = cursor
 
@@ -154,7 +155,7 @@ class TestTubafrenzySourceFetchLibraryRows:
     @patch("wxyc_catalog.catalog_source.connect_mysql")
     def test_closes_cursor(self, mock_connect) -> None:
         cursor = _make_mock_cursor(
-            [(1, "DOGA", "Juana Molina", "JM", 42, 1, "Rock", "LP", None, "Sonamos", None)]
+            [(1, "DOGA", "Juana Molina", "JM", 42, 1, None, "Rock", "LP", None, "Sonamos", None)]
         )
         mock_connect.return_value.cursor.return_value = cursor
 
@@ -176,9 +177,22 @@ class TestTubafrenzySourceFetchLibraryRows:
     @patch("wxyc_catalog.catalog_source.connect_mysql")
     def test_preserves_order(self, mock_connect) -> None:
         raw_rows = [
-            (1, "Confield", "Autechre", "EL", 10, 1, "Electronic", "CD", None, "Warp", None),
-            (2, "Aluminum Tunes", "Stereolab", "RO", 87, 5, "Rock", "CD", None, "Duophonic", None),
-            (3, "DOGA", "Juana Molina", "RO", 42, 1, "Rock", "CD", None, "Sonamos", None),
+            (1, "Confield", "Autechre", "EL", 10, 1, None, "Electronic", "CD", None, "Warp", None),
+            (
+                2,
+                "Aluminum Tunes",
+                "Stereolab",
+                "RO",
+                87,
+                5,
+                None,
+                "Rock",
+                "CD",
+                None,
+                "Duophonic",
+                None,
+            ),
+            (3, "DOGA", "Juana Molina", "RO", 42, 1, None, "Rock", "CD", None, "Sonamos", None),
         ]
         cursor = _make_mock_cursor(raw_rows)
         mock_connect.return_value.cursor.return_value = cursor
@@ -220,6 +234,7 @@ class TestTubafrenzySourceFetchLibraryRows:
                     "BU",
                     110,
                     6,
+                    None,
                     "Rock",
                     'vinyl - 7"',
                     "C.S. Yeh",
@@ -242,7 +257,7 @@ class TestTubafrenzySourceFetchLibraryRows:
     def test_returns_null_cross_reference_names(self, mock_connect) -> None:
         """Rows with no cataloger cross-reference have cross_reference_names=None."""
         cursor = _make_mock_cursor(
-            [(1, "DOGA", "Juana Molina", "JM", 42, 1, "Rock", "LP", None, "Sonamos", None)]
+            [(1, "DOGA", "Juana Molina", "JM", 42, 1, None, "Rock", "LP", None, "Sonamos", None)]
         )
         mock_connect.return_value.cursor.return_value = cursor
 
@@ -261,6 +276,63 @@ class TestTubafrenzySourceFetchLibraryRows:
 
         sql = cursor.execute.call_args[0][0]
         assert "LIBRARY_CODE_CROSS_REFERENCE" in sql
+
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_returns_release_call_letters(self, mock_connect) -> None:
+        """WXYC/wxyc-catalog#38: r.CALL_LETTERS is the per-release volume letter
+        that distinguishes the items of a multi-volume set (e.g. the seven-volume
+        'Atlantic Rhythm and Blues 1947-74' set), distinct from the LIBRARY_CODE
+        call_letters (the artist code, e.g. 'V/A')."""
+        cursor = _make_mock_cursor(
+            [
+                (
+                    52418,
+                    "Atlantic Rhythm and Blues 1947-74",
+                    "Various Artists",
+                    "VA",
+                    200,
+                    1,
+                    "B",
+                    "Rock",
+                    "cd",
+                    None,
+                    None,
+                    None,
+                )
+            ]
+        )
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        rows = source.fetch_library_rows()
+
+        assert rows[0]["release_call_letters"] == "B"
+
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_returns_null_release_call_letters(self, mock_connect) -> None:
+        """A release with no volume letter has release_call_letters=None."""
+        cursor = _make_mock_cursor(
+            [(1, "DOGA", "Juana Molina", "JM", 42, 1, None, "Rock", "LP", None, "Sonamos", None)]
+        )
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        rows = source.fetch_library_rows()
+
+        assert rows[0]["release_call_letters"] is None
+
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_sql_selects_release_call_letters(self, mock_connect) -> None:
+        """The SELECT must take r.CALL_LETTERS (the release's own volume letter),
+        not just lc.CALL_LETTERS (the LIBRARY_CODE artist code)."""
+        cursor = _make_mock_cursor([])
+        mock_connect.return_value.cursor.return_value = cursor
+
+        source = TubafrenzySource("mysql://user:pass@host/db")
+        source.fetch_library_rows()
+
+        sql = cursor.execute.call_args[0][0]
+        assert "r.CALL_LETTERS" in sql
 
 
 class TestTubafrenzySourceFetchAlternateNames:
@@ -465,6 +537,70 @@ class TestBackendServiceSourceFetchLibraryRows:
 
         sql = cursor.execute.call_args[0][0]
         assert "wxyc_schema" in sql
+
+    @patch("wxyc_catalog.catalog_source.psycopg")
+    def test_returns_release_call_letters(self, mock_psycopg) -> None:
+        """WXYC/wxyc-catalog#38: Backend-Service's own ETL aliases
+        l.code_volume_letters AS release_call_letters for this same source column."""
+        _, cursor = _make_pg_mock()
+        mock_psycopg.connect.return_value.cursor.return_value.__enter__ = MagicMock(
+            return_value=cursor
+        )
+        mock_psycopg.connect.return_value.cursor.return_value.__exit__ = MagicMock(
+            return_value=False
+        )
+        cursor.description = [
+            ("id",),
+            ("title",),
+            ("artist",),
+            ("call_letters",),
+            ("artist_call_number",),
+            ("release_call_number",),
+            ("release_call_letters",),
+            ("genre",),
+            ("format",),
+            ("alternate_artist_name",),
+            ("label",),
+        ]
+        cursor.fetchall.return_value = [
+            (
+                1,
+                "Atlantic Rhythm and Blues 1947-74",
+                "Various Artists",
+                "VA",
+                200,
+                1,
+                "B",
+                "Rock",
+                "cd",
+                None,
+                None,
+            )
+        ]
+
+        source = BackendServiceSource("postgresql://user:pass@host/db")
+        rows = source.fetch_library_rows()
+
+        assert rows[0]["release_call_letters"] == "B"
+
+    @patch("wxyc_catalog.catalog_source.psycopg")
+    def test_sql_selects_code_volume_letters(self, mock_psycopg) -> None:
+        _, cursor = _make_pg_mock()
+        mock_psycopg.connect.return_value.cursor.return_value.__enter__ = MagicMock(
+            return_value=cursor
+        )
+        mock_psycopg.connect.return_value.cursor.return_value.__exit__ = MagicMock(
+            return_value=False
+        )
+        cursor.description = []
+        cursor.fetchall.return_value = []
+
+        source = BackendServiceSource("postgresql://user:pass@host/db")
+        source.fetch_library_rows()
+
+        sql = cursor.execute.call_args[0][0]
+        assert "code_volume_letters" in sql
+        assert "release_call_letters" in sql
 
 
 class TestBackendServiceSourceFetchAlternateNames:
