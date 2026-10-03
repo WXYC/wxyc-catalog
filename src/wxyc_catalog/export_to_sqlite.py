@@ -36,8 +36,8 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
 
     Args:
         rows: List of dicts with keys: id, title, artist, call_letters,
-              artist_call_number, release_call_number, genre, format,
-              alternate_artist_name, label, cross_reference_names.
+              artist_call_number, release_call_number, release_call_letters, genre,
+              format, alternate_artist_name, label, cross_reference_names.
         output_path: Path where the SQLite database will be written.
                      An existing file at this path will be removed first.
     """
@@ -55,6 +55,7 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
             call_letters TEXT,
             artist_call_number INTEGER,
             release_call_number INTEGER,
+            release_call_letters TEXT,
             genre TEXT,
             format TEXT,
             alternate_artist_name TEXT,
@@ -74,12 +75,13 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
     """)
 
     for row in rows:
+        release_call_letters = row.get("release_call_letters") or None
         cur.execute(
             """
             INSERT INTO library (id, title, artist, call_letters, artist_call_number,
-                                 release_call_number, genre, format, alternate_artist_name,
-                                 label, cross_reference_names)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                 release_call_number, release_call_letters, genre, format,
+                                 alternate_artist_name, label, cross_reference_names)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 row["id"],
@@ -88,6 +90,7 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
                 row["call_letters"],
                 row["artist_call_number"],
                 row["release_call_number"],
+                release_call_letters,
                 row["genre"],
                 row["format"],
                 row.get("alternate_artist_name"),
