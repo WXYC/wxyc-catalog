@@ -80,12 +80,7 @@ class TestStripLabelRows:
 
 
 class TestNormalizeVolumeLetters:
-    """normalize_volume_letters folds a volume letter to one spelling (WXYC/wxyc-catalog#38).
-
-    tubafrenzy stores an absent letter as '' (not NULL) and mixes case ('b' beside 'B');
-    Backend-Service trims on ETL and folds case in its slot key
-    (upper(coalesce(code_volume_letters, ''))). Consumers get NULL or one upper-case value.
-    """
+    """normalize_volume_letters folds a volume letter to None or one upper-case value."""
 
     @pytest.mark.parametrize(
         ("raw", "expected"),
@@ -304,50 +299,6 @@ class TestTubafrenzySourceFetchLibraryRows:
         assert "LIBRARY_CODE_CROSS_REFERENCE" in sql
 
     @patch("wxyc_catalog.catalog_source.connect_mysql")
-    def test_returns_release_call_letters(self, mock_connect) -> None:
-        """WXYC/wxyc-catalog#38: r.CALL_LETTERS is the per-release volume letter
-        that distinguishes the items of a multi-volume set (e.g. the seven-volume
-        'Atlantic Rhythm and Blues 1947-74' set), distinct from the LIBRARY_CODE
-        call_letters (the artist code, e.g. 'V/A')."""
-        cursor = _make_mock_cursor(
-            [
-                (
-                    52418,
-                    "Atlantic Rhythm and Blues 1947-74",
-                    "Various Artists",
-                    "VA",
-                    200,
-                    1,
-                    "B",
-                    "Rock",
-                    "cd",
-                    None,
-                    None,
-                    None,
-                )
-            ]
-        )
-        mock_connect.return_value.cursor.return_value = cursor
-
-        source = TubafrenzySource("mysql://user:pass@host/db")
-        rows = source.fetch_library_rows()
-
-        assert rows[0]["release_call_letters"] == "B"
-
-    @patch("wxyc_catalog.catalog_source.connect_mysql")
-    def test_returns_null_release_call_letters(self, mock_connect) -> None:
-        """A release with no volume letter has release_call_letters=None."""
-        cursor = _make_mock_cursor(
-            [(1, "DOGA", "Juana Molina", "JM", 42, 1, None, "Rock", "LP", None, "Sonamos", None)]
-        )
-        mock_connect.return_value.cursor.return_value = cursor
-
-        source = TubafrenzySource("mysql://user:pass@host/db")
-        rows = source.fetch_library_rows()
-
-        assert rows[0]["release_call_letters"] is None
-
-    @patch("wxyc_catalog.catalog_source.connect_mysql")
     def test_sql_selects_release_call_letters(self, mock_connect) -> None:
         """The SELECT must take r.CALL_LETTERS (the release's own volume letter),
         not just lc.CALL_LETTERS (the LIBRARY_CODE artist code), and in the slot right
@@ -362,11 +313,14 @@ class TestTubafrenzySourceFetchLibraryRows:
         sql = cursor.execute.call_args[0][0]
         assert re.search(r"r\.CALL_NUMBERS,\s*r\.CALL_LETTERS,\s*g\.REFERENCE_NAME", sql)
 
-    @pytest.mark.parametrize(("raw", "expected"), [("", None), ("b", "B")])
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [("B", "B"), (None, None), ("", None), ("b", "B")],
+        ids=["volume-letter", "null", "empty-string", "lower-case"],
+    )
     @patch("wxyc_catalog.catalog_source.connect_mysql")
-    def test_normalizes_release_call_letters(self, mock_connect, raw, expected) -> None:
-        """tubafrenzy's '' absent-value and lower-case letters are folded at the source,
-        so both CatalogSource implementations emit the same shape."""
+    def test_returns_release_call_letters(self, mock_connect, raw, expected) -> None:
+        """r.CALL_LETTERS is emitted as release_call_letters, folded at the source."""
         cursor = _make_mock_cursor(
             [(1, "DOGA", "Juana Molina", "JM", 42, 1, raw, "Rock", "LP", None, "Sonamos", None)]
         )
@@ -544,13 +498,14 @@ class TestBackendServiceSourceFetchLibraryRows:
             ("call_letters",),
             ("artist_call_number",),
             ("release_call_number",),
+            ("release_call_letters",),
             ("genre",),
             ("format",),
             ("alternate_artist_name",),
             ("label",),
         ]
         cursor.fetchall.return_value = [
-            (1, "DOGA", "Juana Molina", "JM", 42, 1, "Rock", "LP", None, None)
+            (1, "DOGA", "Juana Molina", "JM", 42, 1, None, "Rock", "LP", None, None)
         ]
 
         source = BackendServiceSource("postgresql://user:pass@host/db")
@@ -581,82 +536,30 @@ class TestBackendServiceSourceFetchLibraryRows:
         assert "wxyc_schema" in sql
 
     @patch("wxyc_catalog.catalog_source.psycopg")
-    def test_returns_release_call_letters(self, mock_psycopg) -> None:
-        """WXYC/wxyc-catalog#38: Backend-Service stores the volume letter as
-        l.code_volume_letters; its library ETL reads the same tubafrenzy column as
-        lr.CALL_LETTERS AS release_call_letters, the key this source emits."""
-        _, cursor = _make_pg_mock()
-        mock_psycopg.connect.return_value.cursor.return_value.__enter__ = MagicMock(
-            return_value=cursor
-        )
-        mock_psycopg.connect.return_value.cursor.return_value.__exit__ = MagicMock(
-            return_value=False
-        )
-        cursor.description = [
-            ("id",),
-            ("title",),
-            ("artist",),
-            ("call_letters",),
-            ("artist_call_number",),
-            ("release_call_number",),
-            ("release_call_letters",),
-            ("genre",),
-            ("format",),
-            ("alternate_artist_name",),
-            ("label",),
-        ]
-        cursor.fetchall.return_value = [
-            (
-                1,
-                "Atlantic Rhythm and Blues 1947-74",
-                "Various Artists",
-                "VA",
-                200,
-                1,
-                "B",
-                "Rock",
-                "cd",
-                None,
-                None,
-            )
-        ]
-
-        source = BackendServiceSource("postgresql://user:pass@host/db")
-        rows = source.fetch_library_rows()
-
-        assert rows[0]["release_call_letters"] == "B"
-
-    @patch("wxyc_catalog.catalog_source.psycopg")
     def test_sql_selects_code_volume_letters(self, mock_psycopg) -> None:
-        _, cursor = _make_pg_mock()
-        mock_psycopg.connect.return_value.cursor.return_value.__enter__ = MagicMock(
-            return_value=cursor
-        )
-        mock_psycopg.connect.return_value.cursor.return_value.__exit__ = MagicMock(
-            return_value=False
-        )
+        pg, cursor = _make_pg_mock()
+        mock_psycopg.connect = pg.connect
         cursor.description = []
         cursor.fetchall.return_value = []
 
-        source = BackendServiceSource("postgresql://user:pass@host/db")
-        source.fetch_library_rows()
+        BackendServiceSource("postgresql://user:pass@host/db").fetch_library_rows()
 
         sql = cursor.execute.call_args[0][0]
-        # The column names come from the real cursor.description, so the alias in the
-        # SQL is what decides the key; pin the pairing, not two independent substrings.
+        # Row keys come from the real cursor.description, so the SQL alias decides the
+        # key; pin the pairing, not two independent substrings.
         assert re.search(r"l\.code_volume_letters\s+AS\s+release_call_letters\b", sql)
 
     @patch("wxyc_catalog.catalog_source.psycopg")
     def test_normalizes_release_call_letters(self, mock_psycopg) -> None:
-        """Backend values are folded the same way as tubafrenzy's."""
+        """l.code_volume_letters values are folded the same way as tubafrenzy's."""
         pg, cursor = _make_pg_mock()
         mock_psycopg.connect = pg.connect
         cursor.description = [("id",), ("release_call_letters",)]
-        cursor.fetchall.return_value = [(1, " b "), (2, "")]
+        cursor.fetchall.return_value = [(1, "B"), (2, " b "), (3, ""), (4, None)]
 
         rows = BackendServiceSource("postgresql://user:pass@host/db").fetch_library_rows()
 
-        assert [r["release_call_letters"] for r in rows] == ["B", None]
+        assert [r["release_call_letters"] for r in rows] == ["B", "B", None, None]
 
 
 class TestBackendServiceSourceFetchAlternateNames:
