@@ -10,8 +10,8 @@ WXYC library catalog access and operations. This package defines the `CatalogSou
 class CatalogSource(Protocol):
     def fetch_library_rows(self) -> list[dict[str, Any]]:
         """Library releases. Keys: id, title, artist, call_letters,
-        artist_call_number, release_call_number, genre, format,
-        alternate_artist_name."""
+        artist_call_number, release_call_number, release_call_letters, genre,
+        format, alternate_artist_name, label, cross_reference_names."""
 
     def fetch_alternate_names(self) -> set[str]:
         """Alternate artist names (e.g. 'Body Count' filed under Ice-T)."""
@@ -28,6 +28,8 @@ class CatalogSource(Protocol):
     def close(self) -> None:
         """Release the database connection."""
 ```
+
+`release_call_letters` is the per-release **volume letter** that tells the items of a multi-volume set apart (volume `A` vs `G` of a set shelved at one call number). It is distinct from `call_letters`, the artist code (e.g. `V/A`). Both sources emit it as `None` or one upper-case value (`normalize_volume_letters`): tubafrenzy's `''` and Backend's empty values become `None`, and `'b'` becomes `'B'`, matching Backend-Service's case-insensitive slot key. Backend-Service stores the column as `wxyc_schema.library.code_volume_letters`.
 
 ### Implementations
 
@@ -66,7 +68,7 @@ pip install "wxyc-catalog[mysql]"
 
 ### `wxyc-export-to-sqlite`
 
-Exports the library catalog to a SQLite database with an FTS5 full-text search index on title, artist, and alternate_artist_name.
+Exports the library catalog to a SQLite database with an FTS5 full-text search index on title, artist, and alternate_artist_name. The `library` table's last column, `release_call_letters` (nullable `TEXT`), holds the volume letter; it is a shelf-locator component and is deliberately not in the FTS index. New columns are appended so existing columns keep their ordinal positions.
 
 ```bash
 wxyc-export-to-sqlite \
@@ -115,7 +117,7 @@ export_rows_to_sqlite(rows, Path("library.db"))
 
 | Repo | Usage |
 |------|-------|
-| [discogs-etl](https://github.com/WXYC/discogs-etl) | CI tests import `CatalogSource` for integration/E2E tests. Pipeline scripts use `enrich_library_artists` and `extract_library_labels`. The daily sync workflow queries MySQL directly via CLI (bypassing Python drivers for MySQL 4.1 compatibility) but replicates the same SQLite schema as `export_rows_to_sqlite`. |
+| [discogs-etl](https://github.com/WXYC/discogs-etl) | CI tests import `CatalogSource` for integration/E2E tests. Pipeline scripts use `enrich_library_artists` and `extract_library_labels`. The production `library.db` is **not** built by this package: discogs-etl's daily `scripts/sync-library.sh` builds it from Backend-Service's HTTP catalog export with its own writer (`lib/library_db.py`), so a column added to `export_rows_to_sqlite` reaches production only once that builder carries it too. |
 
 ## Dependencies
 
