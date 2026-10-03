@@ -10,6 +10,7 @@ from wxyc_catalog.catalog_source import (
     CatalogSource,
     TubafrenzySource,
     create_catalog_source,
+    normalize_volume_letters,
 )
 from wxyc_catalog.export_to_sqlite import export_rows_to_sqlite
 from wxyc_catalog.sources.archive import ArchiveSource
@@ -27,4 +28,5 @@ __all__ = [
     "TubafrenzySource",
     "create_catalog_source",
     "export_rows_to_sqlite",
+    "normalize_volume_letters",
 ]
