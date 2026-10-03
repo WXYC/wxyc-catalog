@@ -13,6 +13,7 @@ from wxyc_catalog.catalog_source import (
     _strip_label_rows,
     _strip_name_rows,
     create_catalog_source,
+    normalize_volume_letters,
 )
 
 # ---------------------------------------------------------------------------
@@ -75,6 +76,30 @@ class TestStripLabelRows:
 # ---------------------------------------------------------------------------
 # Factory
 # ---------------------------------------------------------------------------
+
+
+class TestNormalizeVolumeLetters:
+    """normalize_volume_letters folds a volume letter to one spelling (WXYC/wxyc-catalog#38).
+
+    tubafrenzy stores an absent letter as '' (not NULL) and mixes case ('b' beside 'B');
+    Backend-Service trims on ETL and folds case in its slot key
+    (upper(coalesce(code_volume_letters, ''))). Consumers get NULL or one upper-case value.
+    """
+
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [
+            (None, None),
+            ("", None),
+            ("  ", None),
+            ("B", "B"),
+            ("b", "B"),
+            (" b ", "B"),
+            ("LL", "LL"),
+        ],
+    )
+    def test_normalizes(self, raw: str | None, expected: str | None) -> None:
+        assert normalize_volume_letters(raw) == expected
 
 
 class TestCreateCatalogSource:
@@ -333,6 +358,20 @@ class TestTubafrenzySourceFetchLibraryRows:
 
         sql = cursor.execute.call_args[0][0]
         assert "r.CALL_LETTERS" in sql
+
+    @pytest.mark.parametrize(("raw", "expected"), [("", None), ("b", "B")])
+    @patch("wxyc_catalog.catalog_source.connect_mysql")
+    def test_normalizes_release_call_letters(self, mock_connect, raw, expected) -> None:
+        """tubafrenzy's '' absent-value and lower-case letters are folded at the source,
+        so both CatalogSource implementations emit the same shape."""
+        cursor = _make_mock_cursor(
+            [(1, "DOGA", "Juana Molina", "JM", 42, 1, raw, "Rock", "LP", None, "Sonamos", None)]
+        )
+        mock_connect.return_value.cursor.return_value = cursor
+
+        rows = TubafrenzySource("mysql://user:pass@host/db").fetch_library_rows()
+
+        assert rows[0]["release_call_letters"] == expected
 
 
 class TestTubafrenzySourceFetchAlternateNames:
@@ -601,6 +640,18 @@ class TestBackendServiceSourceFetchLibraryRows:
         sql = cursor.execute.call_args[0][0]
         assert "code_volume_letters" in sql
         assert "release_call_letters" in sql
+
+    @patch("wxyc_catalog.catalog_source.psycopg")
+    def test_normalizes_release_call_letters(self, mock_psycopg) -> None:
+        """Backend values are folded the same way as tubafrenzy's."""
+        pg, cursor = _make_pg_mock()
+        mock_psycopg.connect = pg.connect
+        cursor.description = [("id",), ("release_call_letters",)]
+        cursor.fetchall.return_value = [(1, " b "), (2, "")]
+
+        rows = BackendServiceSource("postgresql://user:pass@host/db").fetch_library_rows()
+
+        assert [r["release_call_letters"] for r in rows] == ["B", None]
 
 
 class TestBackendServiceSourceFetchAlternateNames:

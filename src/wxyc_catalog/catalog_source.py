@@ -10,6 +10,7 @@ Factory function create_catalog_source() selects the implementation by name.
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from typing import Any, Protocol, runtime_checkable
 
 import psycopg
@@ -31,6 +32,7 @@ class CatalogSource(Protocol):
         release_call_letters is the per-release volume letter that distinguishes
         the items of a multi-volume set (e.g. 'B' of a seven-volume A-G set),
         distinct from call_letters (the LIBRARY_CODE artist code, e.g. 'V/A').
+        It is None or one upper-case value (see normalize_volume_letters).
         Backend-Service stores this same column as
         wxyc_schema.library.code_volume_letters."""
         ...
@@ -54,6 +56,27 @@ class CatalogSource(Protocol):
     def close(self) -> None:
         """Release the underlying database connection."""
         ...
+
+
+def normalize_volume_letters(value: str | None) -> str | None:
+    """Fold a per-release volume letter to None or one upper-case spelling.
+
+    tubafrenzy stores an absent letter as '' and mixes case ('b' beside 'B');
+    Backend-Service trims on ETL and treats case as insignificant in its slot key
+    (``upper(coalesce(code_volume_letters, ''))``). Folding here gives consumers a
+    single absent-value and a single spelling per volume.
+    """
+    if value is None:
+        return None
+    return value.strip().upper() or None
+
+
+def _library_row(columns: Sequence[str], values: Sequence[Any]) -> dict[str, Any]:
+    """Zip one fetch_library_rows result row into a dict, folding its volume letter."""
+    row = dict(zip(columns, values, strict=True))
+    if "release_call_letters" in row:
+        row["release_call_letters"] = normalize_volume_letters(row["release_call_letters"])
+    return row
 
 
 def _strip_name_rows(rows) -> set[str]:
@@ -141,7 +164,7 @@ class TubafrenzySource:
         """)
         rows = list(cur)
         cur.close()
-        return [dict(zip(columns, row, strict=True)) for row in rows]
+        return [_library_row(columns, row) for row in rows]
 
     def fetch_alternate_names(self) -> set[str]:
         """Return alternate artist names from LIBRARY_RELEASE."""
@@ -231,7 +254,7 @@ class BackendServiceSource:
                   ON gac.artist_id = l.artist_id AND gac.genre_id = l.genre_id
             """)
             columns = [desc[0] for desc in cur.description]
-            return [dict(zip(columns, row, strict=True)) for row in cur.fetchall()]
+            return [_library_row(columns, row) for row in cur.fetchall()]
 
     def fetch_alternate_names(self) -> set[str]:
         """Return alternate artist names from wxyc_schema.library."""

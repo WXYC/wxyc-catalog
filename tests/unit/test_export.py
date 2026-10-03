@@ -286,6 +286,21 @@ class TestExportRowsToSqlite:
         assert row is not None
         assert row[0] is None
 
+    @pytest.mark.parametrize(("raw", "expected"), [("  ", None), ("b", "B")])
+    def test_normalizes_release_call_letters(
+        self, tmp_path: Path, raw: str, expected: str | None
+    ) -> None:
+        """Rows from any caller are folded on export: whitespace-only becomes NULL and
+        letters are upper-cased (WXYC/wxyc-catalog#38)."""
+        db_path = tmp_path / "library.db"
+        export_rows_to_sqlite([make_library_row(id=1, release_call_letters=raw)], db_path)
+
+        conn = sqlite3.connect(db_path)
+        row = conn.execute("SELECT release_call_letters FROM library WHERE id = 1").fetchone()
+        conn.close()
+
+        assert row[0] == expected
+
     def test_fts_excludes_release_call_letters(self, tmp_path: Path) -> None:
         """release_call_letters is a locator component, not searchable text, and
         must not be indexed by the FTS5 table (WXYC/wxyc-catalog#38)."""
