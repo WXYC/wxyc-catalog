@@ -11,6 +11,8 @@ import pytest
 from tests.factories import make_library_row
 from wxyc_catalog.export_to_sqlite import export, export_rows_to_sqlite, format_size, parse_args
 
+_MISSING = object()
+
 
 class TestExportRowsToSqlite:
     """Tests for the export_rows_to_sqlite() public function."""
@@ -238,68 +240,27 @@ class TestExportRowsToSqlite:
             "release_call_letters",
         ]
 
-    def test_exports_release_call_letters(self, tmp_path: Path) -> None:
-        """A row with a volume letter (WXYC/wxyc-catalog#38) should store it in SQLite."""
-        db_path = tmp_path / "library.db"
-        export_rows_to_sqlite(
-            [
-                make_library_row(
-                    id=1,
-                    artist="Various Artists",
-                    title="Atlantic Rhythm and Blues 1947-74",
-                    release_call_letters="B",
-                )
-            ],
-            db_path,
-        )
-
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT release_call_letters FROM library WHERE id = 1").fetchone()
-        conn.close()
-
-        assert row is not None
-        assert row[0] == "B"
-
-    def test_exports_null_release_call_letters(self, tmp_path: Path) -> None:
-        """Rows with no volume letter should store NULL in SQLite."""
-        db_path = tmp_path / "library.db"
-        export_rows_to_sqlite([make_library_row(id=1, release_call_letters=None)], db_path)
-
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT release_call_letters FROM library WHERE id = 1").fetchone()
-        conn.close()
-
-        assert row is not None
-        assert row[0] is None
-
-    def test_normalizes_empty_release_call_letters_to_null(self, tmp_path: Path) -> None:
-        """An empty-string volume letter should normalize to NULL, not ''.
-
-        Consumers need one absent-value to check against (WXYC/wxyc-catalog#38)."""
-        db_path = tmp_path / "library.db"
-        export_rows_to_sqlite([make_library_row(id=1, release_call_letters="")], db_path)
-
-        conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT release_call_letters FROM library WHERE id = 1").fetchone()
-        conn.close()
-
-        assert row is not None
-        assert row[0] is None
-
-    @pytest.mark.parametrize(("raw", "expected"), [("  ", None), ("b", "B")])
-    def test_normalizes_release_call_letters(
-        self, tmp_path: Path, raw: str, expected: str | None
+    @pytest.mark.parametrize(
+        ("raw", "expected"),
+        [("B", "B"), (None, None), ("", None), ("  ", None), ("b", "B"), (_MISSING, None)],
+        ids=["volume-letter", "null", "empty-string", "whitespace", "lower-case", "key-absent"],
+    )
+    def test_exports_release_call_letters(
+        self, tmp_path: Path, raw: object, expected: str | None
     ) -> None:
-        """Rows from any caller are folded on export: whitespace-only becomes NULL and
-        letters are upper-cased (WXYC/wxyc-catalog#38)."""
+        """The volume letter (WXYC/wxyc-catalog#38) is folded on export, so rows from any
+        caller, including one predating the key, land as NULL or one upper-case value."""
+        row = make_library_row(id=1, release_call_letters=raw)
+        if raw is _MISSING:
+            del row["release_call_letters"]
         db_path = tmp_path / "library.db"
-        export_rows_to_sqlite([make_library_row(id=1, release_call_letters=raw)], db_path)
+        export_rows_to_sqlite([row], db_path)
 
         conn = sqlite3.connect(db_path)
-        row = conn.execute("SELECT release_call_letters FROM library WHERE id = 1").fetchone()
+        stored = conn.execute("SELECT release_call_letters FROM library WHERE id = 1").fetchone()
         conn.close()
 
-        assert row[0] == expected
+        assert stored[0] == expected
 
     def test_fts_excludes_release_call_letters(self, tmp_path: Path) -> None:
         """release_call_letters is a locator component, not searchable text, and
