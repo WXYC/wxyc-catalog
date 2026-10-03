@@ -36,8 +36,10 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
 
     Args:
         rows: List of dicts with keys: id, title, artist, call_letters,
-              artist_call_number, release_call_number, release_call_letters, genre,
-              format, alternate_artist_name, label, cross_reference_names.
+              artist_call_number, release_call_number, genre, format,
+              alternate_artist_name, label, cross_reference_names, and optionally
+              release_call_letters (appended last in the table so the existing
+              columns keep their ordinal positions).
         output_path: Path where the SQLite database will be written.
                      An existing file at this path will be removed first.
     """
@@ -55,12 +57,12 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
             call_letters TEXT,
             artist_call_number INTEGER,
             release_call_number INTEGER,
-            release_call_letters TEXT,
             genre TEXT,
             format TEXT,
             alternate_artist_name TEXT,
             label TEXT,
-            cross_reference_names TEXT
+            cross_reference_names TEXT,
+            release_call_letters TEXT
         )
     """)
 
@@ -79,8 +81,8 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
         cur.execute(
             """
             INSERT INTO library (id, title, artist, call_letters, artist_call_number,
-                                 release_call_number, release_call_letters, genre, format,
-                                 alternate_artist_name, label, cross_reference_names)
+                                 release_call_number, genre, format, alternate_artist_name,
+                                 label, cross_reference_names, release_call_letters)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -90,12 +92,12 @@ def export_rows_to_sqlite(rows: list[dict], output_path: Path) -> None:
                 row["call_letters"],
                 row["artist_call_number"],
                 row["release_call_number"],
-                release_call_letters,
                 row["genre"],
                 row["format"],
                 row.get("alternate_artist_name"),
                 row.get("label"),
                 row.get("cross_reference_names"),
+                release_call_letters,
             ),
         )
 
